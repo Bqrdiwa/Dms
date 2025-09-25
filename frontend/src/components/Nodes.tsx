@@ -1,342 +1,496 @@
 import { useEffect, useState } from "react";
 import {
-    ReactFlow,
-    Background,
-    Controls,
-    Handle,
-    Position,
-    type Node,
-    type Edge,
-    type NodeTypes,
-    applyNodeChanges,
-    applyEdgeChanges,
-    type NodeChange,
-    type EdgeChange,
+  ReactFlow,
+  Background,
+  Controls,
+  Handle,
+  Position,
+  type Node,
+  type Edge,
+  type NodeTypes,
+  applyNodeChanges,
+  applyEdgeChanges,
+  type NodeChange,
+  type EdgeChange,
 } from "@xyflow/react";
 import apiClient from "../api/ApiClient";
 import {
-    Button,
-    Link,
-    Modal,
-    ModalContent,
-    ModalHeader,
-    ModalBody,
-    ModalFooter,
-    Input,
-    Divider,
-    Form,
-    Textarea,
-    addToast,
+  Button,
+  Link,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Input,
+  Form,
+  Textarea,
+  addToast,
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
 } from "@heroui/react";
 import { Trash } from "lucide-react";
-import Excel from "../assets/excel-svgrepo-com 1.png";
-import TagAutocomplete from "./SearchForTags";
-import ImageMap from "./MapLocation";
-import VendorAutocomplete from "./SerachForVendor";
-import { BACKEND_BASE_URL } from "../api/Setting";
 
+import { BACKEND_BASE_URL } from "../api/Setting";
+import { Link as RouterLink } from "react-router-dom";
+import AddInstanceModal from "./AddInstanceModal";
 // ---------- Types ----------
+interface Document {
+  title: string;
+  description: string;
+  file?: File;
+}
+
 interface Instance {
-    instanceId: string;
-    title: string;
+  instanceId: string;
+  title: string;
+  documents?: Document[];
 }
 
 interface Category {
-    categoryId: string;
-    name: string;
-    documentCount: number;
-    instanceCount: number;
-    instances: Instance[];
+  categoryId: string;
+  name: string;
+  documentCount: number;
+  instanceCount: number;
+  instances: Instance[];
 }
 
 interface ApiResponse {
-    result: Category[];
+  result: Category[];
 }
 
 // ---------- Custom Nodes ----------
-const CategoryNode = ({ data, id }: { data: { label: string; onAddNode?: (id: string) => void }; id: string }) => {
-    const handleAddDoc = () => {
-        data.onAddNode?.(id);
-    };
+const CategoryNode = ({
+  data,
+  id,
+}: {
+  data: {
+    documentCount: number;
+    instanceCount: number;
+    label: string;
+    onAddNode?: (id: string) => void;
+  };
+  id: string;
+}) => {
+  const handleAddNode = () => {
+    data.onAddNode?.(id);
+  };
 
-    return (
-        <div className="relative w-64 rounded-md bg-background overflow-visible">
-            <div className="bg-secondary flex w-full p-1 rounded-t-md justify-between text-[.8rem] text-center font-medium items-center px-2 text-background">
-                <p>{data.label}</p>
-                <Trash className="w-3" />
-            </div>
-            <div className="flex gap-4 items-center justify-center p-2 text-center">
-                <div className="flex flex-col items-center gap-2">
-                    <h4 className="text-[.7rem] font-medium">234</h4>
-                    <h5 className="text-default-600 text-[.6rem]">Documents</h5>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                    <h4 className="text-[.7rem] font-medium">234</h4>
-                    <h5 className="text-default-600 text-[.6rem]">Documents</h5>
-                </div>
-            </div>
-
-            <Handle type="source" position={Position.Bottom} />
-
-            <Button
-                onPress={handleAddDoc}
-                style={{ height: "20px" }}
-                className="absolute top-full w-14 min-w-[unset] rounded-full mt-1 left-0 border-1 border-default-200 leading-0 p-0 text-[.5rem]"
-            >
-                Add Node
-            </Button>
+  return (
+    <div className="relative w-64 rounded-md bg-background overflow-visible">
+      <div className="bg-secondary flex w-full p-1 rounded-t-md justify-between text-[.8rem] text-center font-medium items-center px-2 text-background">
+        <p>{data.label}</p>
+        <Trash className="w-3" />
+      </div>
+      <div className="flex gap-4 items-center justify-center p-2 text-center">
+        <div className="flex flex-col items-center gap-2">
+          <h4 className="text-[.7rem] font-medium">{data.documentCount}</h4>
+          <h5 className="text-default-600 text-[.6rem]">Documents</h5>
         </div>
-    );
+        <div className="flex flex-col items-center gap-2">
+          <h4 className="text-[.7rem] font-medium">{data.instanceCount}</h4>
+          <h5 className="text-default-600 text-[.6rem]">Instances</h5>
+        </div>
+      </div>
+
+      <Handle type="source" position={Position.Bottom} />
+
+      <Button
+        onPress={handleAddNode}
+        style={{ height: "20px" }}
+        className="absolute top-full w-14 min-w-[unset] rounded-full mt-1 left-0 border-1 border-default-200 leading-0 p-0 text-[.5rem]"
+      >
+        Add Node
+      </Button>
+    </div>
+  );
 };
 
-const InstanceNode = ({ data }: { data: { label: string } }) => (
-    <div className="rounded-md w-64 bg-background overflow-hidden">
-        <div className="bg-secondary flex w-full p-1 justify-between text-[.8rem] text-center font-medium items-center px-2 text-background">
-            <p>{data.label}</p>
-            <Trash className="w-3" />
-        </div>
-        <div className="flex gap-1 items-center flex-col text-center">
-            <div className="flex flex-wrap w-full p-2 px-2 gap-1">
-                <div className="bg-default-100 text-[.6rem] rounded-sm p-1">Doc Name</div>
+const InstanceNode = ({
+  data,
+}: {
+  data: {
+    label: string;
+    documents?: Document[];
+    onShowAllDocs?: (docs: Document[]) => void;
+    onShowDocDetail?: (doc: Document) => void;
+    onAddDocument?: () => void;
+  };
+}) => {
+  const docs = data.documents ?? [];
+
+  return (
+    <div className="relative rounded-md w-64 bg-background overflow-visible">
+      <div className="bg-secondary-800 flex w-full p-1  rounded-t-md justify-between text-[.8rem] text-center font-medium items-center px-2 text-background">
+        <p>{data.label}</p>
+        <Trash className="w-3" />
+      </div>
+      <div className="flex flex-col items-center text-center p-2">
+        {docs.length === 0 ? (
+          <p className="italic text-xs text-default-500">No documents</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 w-full gap-1 mb-2">
+              {docs.slice(0, 3).map((doc, i) => (
+                <div
+                  key={i}
+                  onClick={() => data.onShowDocDetail?.(doc)}
+                  className="bg-default-100 cursor-pointer text-[.6rem] rounded-sm p-1 hover:bg-default-200"
+                >
+                  {doc.title}
+                </div>
+              ))}
             </div>
-            <Link className="text-[.6rem] mb-2">Show All Documents</Link>
-        </div>
-        <Handle type="target" position={Position.Top} />
+            {docs.length > 3 && (
+              <Link
+                className="text-[.6rem] cursor-pointer"
+                onClick={() => data.onShowAllDocs?.(docs)}
+              >
+                Show All Documents
+              </Link>
+            )}
+          </>
+        )}
+      </div>
+
+      <Handle type="target" position={Position.Top} />
+
+      {/* Add Document Button like Add Node */}
+      <Button
+        onPress={data.onAddDocument}
+        style={{ height: "20px" }}
+        className="absolute top-full w-14 min-w-[unset] rounded-full mt-1 left-0 border-1 border-default-200 leading-0 p-0 text-[.5rem]"
+      >
+        Add Doc
+      </Button>
     </div>
-);
+  );
+};
 
 const nodeTypes: NodeTypes = {
-    category: CategoryNode,
-    instance: InstanceNode,
+  category: CategoryNode,
+  instance: InstanceNode,
 };
 
 export default function CategoryTree() {
-    const [nodes, setNodes] = useState<Node[]>([]);
-    const [edges, setEdges] = useState<Edge[]>([]);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-    const [pos, setPos] = useState<[number, number] | null>(null);
-    const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [loadingCategory, setLoadingCategory] = useState(false);
-    const [tag, setSelectedTag] = useState<null | string>(null);
-    const [vendor, setSelectedVendor] = useState<null | string>(null);
-    const [mapId, setMapId] = useState<null | string>(null);
+  const [nodes, setNodes] = useState<Node[]>([]);
+  const [edges, setEdges] = useState<Edge[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null
+  );
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(
+    null
+  );
+  const [loading, setLoading] = useState(false);
+  const [loadingCategory, setLoadingCategory] = useState(false);
 
-    const onNodesChange = (changes: NodeChange[]) => {
-        setNodes((nds) => applyNodeChanges(changes, nds));
-    };
+  // Drawer + Modal states
+  const [drawerDocs, setDrawerDocs] = useState<Document[] | null>(null);
+  const [docDetail, setDocDetail] = useState<Document | null>(null);
 
-    const onEdgesChange = (changes: EdgeChange[]) => {
-        setEdges((eds) => applyEdgeChanges(changes, eds));
-    };
+  // Form state for adding document
+  const [newDocTitle, setNewDocTitle] = useState("");
+  const [newDocDescription, setNewDocDescription] = useState("");
+  const [newDocFile, setNewDocFile] = useState<File | null>(null);
 
-    const refreshTree = async () => {
-        const res = await apiClient.get<ApiResponse>("/category/tree");
+  const onNodesChange = (changes: NodeChange[]) => {
+    setNodes((nds) => applyNodeChanges(changes, nds));
+  };
 
-        const newNodes: Node[] = [];
-        const newEdges: Edge[] = [];
+  const onEdgesChange = (changes: EdgeChange[]) => {
+    setEdges((eds) => applyEdgeChanges(changes, eds));
+  };
 
-        const categorySpacingY = 300;
-        const instanceSpacingX = 270;
+  const refreshTree = async () => {
+    const res = await apiClient.get<ApiResponse>("/category/tree");
 
-        res.data.result.forEach((category, catIdx) => {
-            const blockStartY = catIdx * categorySpacingY;
+    const newNodes: Node[] = [];
+    const newEdges: Edge[] = [];
 
-            newNodes.push({
-                id: category.categoryId,
-                position: { x: 0, y: blockStartY },
-                data: { label: category.name },
-                type: "category",
-            });
+    const categorySpacingX = 300; // horizontal spacing between categories
+    const instanceSpacingY = 120; // vertical spacing between instances
 
-            category.instances.forEach((instance, i) => {
-                newNodes.push({
-                    id: instance.instanceId,
-                    position: { x: i * instanceSpacingX, y: blockStartY + 120 },
-                    data: { label: instance.title },
-                    type: "instance",
-                });
+    res.data.result.forEach((category, catIdx) => {
+      const blockStartX = catIdx * categorySpacingX;
 
-                newEdges.push({
-                    id: `${category.categoryId}-${instance.instanceId}`,
-                    source: category.categoryId,
-                    target: instance.instanceId,
-                    style: { stroke: "#888" },
-                });
-            });
+      // place category node horizontally in a row
+      newNodes.push({
+        id: category.categoryId,
+        position: { x: blockStartX, y: 0 },
+        data: {
+          instanceCount: category.instanceCount,
+          documentCount: category.documentCount,
+          label: category.name,
+        },
+        type: "category",
+      });
+
+      category.instances.forEach((instance, i) => {
+        // stack instances vertically below their category
+        newNodes.push({
+          id: instance.instanceId,
+          position: { x: blockStartX, y: (i + 1) * instanceSpacingY },
+          data: {
+            label: instance.title,
+            documents: instance.documents ?? [],
+
+            onShowAllDocs: (docs: Document[]) => {
+              setDrawerDocs(docs);
+              setSelectedInstanceId(instance.instanceId);
+            },
+            onShowDocDetail: (doc: Document) => {
+              setDocDetail(doc);
+            },
+            onAddDocument: () => {
+              setSelectedInstanceId(instance.instanceId);
+              setDocModalOpen(true);
+            },
+          },
+          type: "instance",
         });
 
-        setNodes(newNodes);
-        setEdges(newEdges);
-    };
+        newEdges.push({
+          id: `${category.categoryId}-${instance.instanceId}`,
+          source: category.categoryId,
+          target: instance.instanceId,
+          style: { stroke: "#888" },
+        });
+      });
+    });
 
-    const handleAddNode = (categoryId: string) => {
-        setSelectedCategoryId(categoryId);
-        setModalOpen(true);
-    };
+    setNodes(newNodes);
+    setEdges(newEdges);
+  };
 
-    // Submit new instance
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        if (!selectedCategoryId || !tag || !vendor || !mapId || !pos) {
-            addToast({
-                title: "Place the marker on the map!",
-                color: "warning",
-            });
-            return;
-        }
+  const handleAddNode = (categoryId: string) => {
+    setSelectedCategoryId(categoryId);
+    setModalOpen(true);
+  };
 
-        const formData = new FormData(e.currentTarget);
-        const payload = {
-            title: formData.get("title") as string,
-            description: formData.get("description") as string,
-            categoryId: selectedCategoryId,
-            tagId: tag,
-            vendorId: vendor,
-            mapId: mapId,
-            posX: pos[0],
-            posY: pos[1],
-        };
+  // Submit new category
+  const handleSubmitCategory = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const payload = { name: formData.get("name") as string };
 
-        try {
-            setLoading(true);
-            await apiClient.post(BACKEND_BASE_URL + "/api" + "/instance/", payload);
-            setModalOpen(false);
-            setSelectedCategoryId(null);
-            setSelectedTag(null);
-            setSelectedVendor(null);
-            setMapId(null);
-            setPos(null);
+    try {
+      setLoadingCategory(true);
+      await apiClient.post("/category/", payload);
+      setCategoryModalOpen(false);
+      await refreshTree();
+      addToast({ title: "Category created", color: "success" });
+    } catch (err) {
+      console.error("Failed to create category", err);
+      addToast({ title: "Failed to create category", color: "danger" });
+    } finally {
+      setLoadingCategory(false);
+    }
+  };
 
-            await refreshTree();
-        } catch (err) {
-            console.error("Failed to create instance", err);
-            addToast({
-                title: "Failed to create instance",
-                color: "danger",
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
+  // Submit new document
+  const handleSubmitDocument = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedInstanceId || !newDocFile) {
+      addToast({ title: "Please select a file!", color: "warning" });
+      return;
+    }
 
-    // Submit new category
-    const handleSubmitCategory = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        const payload = {
-            name: formData.get("name") as string,
-        };
+    const formData = new FormData();
+    formData.append("title", newDocTitle);
+    formData.append("description", newDocDescription);
+    formData.append("instanceId", selectedInstanceId);
+    formData.append("file", newDocFile);
 
-        try {
-            setLoadingCategory(true);
-            await apiClient.post("/category/", payload);
-            setCategoryModalOpen(false);
+    try {
+      setLoading(true);
+      await apiClient.post(BACKEND_BASE_URL + "/api/document/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setDocModalOpen(false);
+      setNewDocTitle("");
+      setNewDocDescription("");
+      setNewDocFile(null);
+      await refreshTree();
+    } catch (err) {
+      console.error("Failed to add document", err);
+      addToast({ title: "Failed to add document", color: "danger" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            await refreshTree();
-            addToast({
-                title: "Category created",
-                color: "success",
-            });
-        } catch (err) {
-            console.error("Failed to create category", err);
-            addToast({
-                title: "Failed to create category",
-                color: "danger",
-            });
-        } finally {
-            setLoadingCategory(false);
-        }
-    };
+  useEffect(() => {
+    refreshTree();
+  }, []);
+  console.log(selectedInstanceId);
+  return (
+    <div style={{ flex: 1, height: "100vh", position: "relative" }}>
+      <div className="absolute top-4 right-4 z-50">
+        <Button color="primary" onPress={() => setCategoryModalOpen(true)}>
+          New Category
+        </Button>
+      </div>
 
-    useEffect(() => {
-        refreshTree();
-    }, []);
+      <ReactFlow
+        nodes={nodes.map((n) => ({
+          ...n,
+          data:
+            n.type === "category"
+              ? { ...n.data, onAddNode: handleAddNode }
+              : n.data,
+        }))}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        fitView
+      >
+        <Background />
+        <Controls />
+      </ReactFlow>
 
-    return (
-        <div style={{flex:1, height: "100vh", position: "relative" }}>
-            {/* Top-right button */}
-            <div className="absolute top-4 right-4 z-50">
-                <Button color="primary" onPress={() => setCategoryModalOpen(true)}>
-                   New Category
-                </Button>
-            </div>
+      {/* Drawer for all documents */}
+      <Drawer
+        placement="right"
+        isOpen={!!drawerDocs}
+        onOpenChange={() => setDrawerDocs(null)}
+      >
+        <DrawerContent>
+          <DrawerHeader>All Documents</DrawerHeader>
+          <DrawerBody>
+            {drawerDocs?.length === 0 && (
+              <p className="italic text-xs text-default-500">No documents</p>
+            )}
+            {drawerDocs?.map((doc, i) => (
+              <div
+                key={i}
+                onClick={() => {
+                  setDocDetail(doc);
+                }}
+                className="cursor-pointer p-2 rounded-md hover:bg-default-100"
+              >
+                <h4 className="font-medium text-sm">{doc.title}</h4>
+                <p className="text-xs text-default-600 truncate">
+                  {doc.description}
+                </p>
+              </div>
+            ))}
+          </DrawerBody>
+          <DrawerFooter>
+            <Button onPress={() => setDrawerDocs(null)}>Close</Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
-            <ReactFlow
-                nodes={nodes.map((n) => ({
-                    ...n,
-                    data: n.type === "category" ? { ...n.data, onAddNode: handleAddNode } : n.data,
-                }))}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                fitView
+      {/* Document detail modal */}
+      {/* Document detail modal */}
+      <Modal isOpen={!!docDetail} onOpenChange={() => setDocDetail(null)}>
+        <ModalContent>
+          <ModalHeader>{docDetail?.title}</ModalHeader>
+          <ModalBody>
+            <p>{docDetail?.description}</p>
+          </ModalBody>
+          <ModalFooter>
+            {selectedInstanceId && (
+              <Button
+                as={RouterLink}
+                to={`/instance/${selectedInstanceId}`}
+                color="primary"
+              >
+                Open Document Page
+              </Button>
+            )}
+            <Button color="default" onPress={() => setDocDetail(null)}>
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Add Instance Modal */}
+      <AddInstanceModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        categoryId={selectedCategoryId}
+        onDone={refreshTree}
+      />
+
+      {/* Add Document Modal */}
+      <Modal size="md" isOpen={docModalOpen} onOpenChange={setDocModalOpen}>
+        <ModalContent>
+          <ModalHeader>Add Document</ModalHeader>
+          <ModalBody>
+            <Form
+              onSubmit={handleSubmitDocument}
+              className="flex flex-col gap-4"
             >
-                <Background />
-                <Controls />
-            </ReactFlow>
+              <Input
+                isRequired
+                placeholder="Enter document title..."
+                label="Title"
+                value={newDocTitle}
+                onChange={(e) => setNewDocTitle(e.target.value)}
+              />
+              <Textarea
+                isRequired
+                placeholder="Enter document description..."
+                label="Description"
+                value={newDocDescription}
+                onChange={(e) => setNewDocDescription(e.target.value)}
+                rows={4}
+              />
+              <Input
+                isRequired
+                type="file"
+                accept="application/pdf"
+                label="PDF File"
+                onChange={(e) => setNewDocFile(e.target.files?.[0] ?? null)}
+              />
+              <div className="justify-end w-full flex">
+                <Button isLoading={loading} type="submit" color="primary">
+                  Submit
+                </Button>
+              </div>
+            </Form>
+          </ModalBody>
+          <ModalFooter className="py-2"></ModalFooter>
+        </ModalContent>
+      </Modal>
 
-            {/* Instance Modal */}
-            <Modal size="5xl" isOpen={modalOpen} onOpenChange={setModalOpen}>
-                <ModalContent>
-                    <ModalHeader>Add New Node</ModalHeader>
-                    <ModalBody>
-                        <h1>Upload Equipment</h1>
-                        <div className="flex p-10 flex-col items-center justify-center border-2 border-dashed border-default-300 rounded-md">
-                            <img src={Excel} />
-                            <p>drag and drop Excel file here...</p>
-                        </div>
-                        <div className="relative my-3">
-                            <p className="absolute left-1/2 top-1/2 bg-white px-2 -translate-1/2">OR</p>
-                            <Divider />
-                        </div>
-                        <div className="flex gap-5">
-                            <Form className="flex-1 justify-between" onSubmit={handleSubmit}>
-                                <div className="flex w-full flex-col gap-2">
-                                    <TagAutocomplete setSelectedTag={setSelectedTag} />
-                                    <VendorAutocomplete setSelectedvendor={setSelectedVendor} />
-                                    <Input isRequired placeholder="prompt text..." label="title" name="title" labelPlacement="outside" />
-                                    <Textarea
-                                        isRequired
-                                        rows={5}
-                                        minRows={3}
-                                        maxRows={5}
-                                        name="description"
-                                        placeholder="prompt text..."
-                                        label="description"
-                                        labelPlacement="outside"
-                                    />
-                                </div>
-                                <Button isLoading={loading} type="submit" fullWidth color="primary">
-                                    Submit
-                                </Button>
-                            </Form>
-                            <ImageMap setMapId={setMapId} setPos={setPos} posX={pos?.[0] ?? 0} posY={pos?.[1] ?? 0} />
-                        </div>
-                    </ModalBody>
-                    <ModalFooter className="py-2"></ModalFooter>
-                </ModalContent>
-            </Modal>
-
-            {/* Category Modal */}
-            <Modal size="md" isOpen={categoryModalOpen} onOpenChange={setCategoryModalOpen}>
-                <ModalContent>
-                    <ModalHeader>Create Category</ModalHeader>
-                    <ModalBody>
-                        <Form onSubmit={handleSubmitCategory} className="flex flex-col gap-4">
-                            <Input isRequired placeholder="Enter category name..." label="Name" name="name" labelPlacement="outside" />
-                            <Button isLoading={loadingCategory} type="submit" color="primary">
-                                Create
-                            </Button>
-                        </Form>
-                    </ModalBody>
-                    <ModalFooter className="py-2">
-
-                    </ModalFooter>
-                </ModalContent>
-            </Modal>
-        </div>
-    );
+      {/* Category Modal */}
+      <Modal
+        size="md"
+        isOpen={categoryModalOpen}
+        onOpenChange={setCategoryModalOpen}
+      >
+        <ModalContent>
+          <ModalHeader>Create Category</ModalHeader>
+          <ModalBody>
+            <Form
+              onSubmit={handleSubmitCategory}
+              className="flex flex-col gap-4"
+            >
+              <Input
+                isRequired
+                placeholder="Enter category name..."
+                label="Name"
+                name="name"
+                labelPlacement="outside"
+              />
+              <Button isLoading={loadingCategory} type="submit" color="primary">
+                Create
+              </Button>
+            </Form>
+          </ModalBody>
+          <ModalFooter className="py-2"></ModalFooter>
+        </ModalContent>
+      </Modal>
+    </div>
+  );
 }

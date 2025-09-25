@@ -1,4 +1,4 @@
-import { Input, Link } from "@heroui/react";
+import { Input } from "@heroui/react";
 import { Key, User } from "lucide-react";
 
 export default function LoginInputs() {
@@ -26,7 +26,6 @@ export default function LoginInputs() {
         startContent={<Key className="text-default-800" />}
         placeholder="Input you password..."
       />
-      <Link>Forgot my password!</Link>
     </>
   );
 }

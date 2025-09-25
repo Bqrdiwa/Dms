@@ -1,4 +1,3 @@
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./Application.tsx";
@@ -10,6 +9,9 @@ import TagListPage from "./pages/tags/TagListPage.tsx";
 import VendorListPage from "./pages/vendors/vendorslist.tsx";
 import NodesFlow from "./components/Nodes.tsx";
 import HomePage from "./pages/home/HomePage.tsx";
+import UserManagementPage from "./pages/user/userList.tsx";
+import DocsPage from "./pages/home/DocsPage.tsx";
+import InstancesListPage from "./pages/equipments/instancesList.tsx";
 const router = createBrowserRouter([
   {
     Component: App,
@@ -25,12 +27,24 @@ const router = createBrowserRouter([
           },
           {
             path: "/vendors",
-            Component: VendorListPage
+            Component: VendorListPage,
           },
           {
             path: "/nodes",
-            Component: NodesFlow
-          }
+            Component: NodesFlow,
+          },
+          {
+            path: "/management",
+            Component: UserManagementPage,
+          },
+          {
+            path: "/instance/:id",
+            Component: DocsPage,
+          },
+          {
+            path: "/equipments",
+            Component: InstancesListPage,
+          },
         ],
       },
       {
@@ -43,8 +57,6 @@ const router = createBrowserRouter([
 createRoot(document.getElementById("root")!).render(
   <HeroUIProvider>
     <ToastProvider />
-    <StrictMode>
-      <RouterProvider router={router} />
-    </StrictMode>
+    <RouterProvider router={router} />
   </HeroUIProvider>
 );
