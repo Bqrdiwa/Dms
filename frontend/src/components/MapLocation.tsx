@@ -53,7 +53,7 @@ export default function ImageMap({
 
   const handleClick = (e: React.MouseEvent) => {
     if (!containerRef.current || !imgRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
+    const rect = imgRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
     setPos([x, y]);
@@ -76,8 +76,8 @@ export default function ImageMap({
       ref={containerRef}
       className="relative h-fit flex overflow-hidden"
       onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
       onClick={handleClick}
+      onMouseLeave={handleMouseLeave}
       style={{ cursor: "crosshair", maxWidth: "100%" }}
     >
       <Image

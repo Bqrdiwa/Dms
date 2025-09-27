@@ -141,6 +141,7 @@ export default function InstancesListPage() {
         isOpen={isOpen}
         onClose={onClose}
         categoryId={null}
+        handleCategorys
         onDone={async () => {
           mapId && fetchInstances(mapId, page);
         }}

@@ -49,7 +49,7 @@ const sidebarItems: SidebarItem[] = [
   },
   {
     id: "Equipments List",
-    label: "Equipments List",
+    label: "Equipments",
     icon: FileX,
     children: [
       {

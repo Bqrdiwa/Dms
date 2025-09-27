@@ -29,7 +29,13 @@ export default function DocsSideBar({
   return (
     <div className="w-120 h-full bg-background shadow-md flex flex-col">
       <div className="flex items-center justify-between p-6">
-        <h1 className="font-bold text-lg">{instanceTitle} Docs</h1>
+        <h1 className="font-bold text-lg">
+          {instanceTitle ? (
+            `${instanceTitle} Docs`
+          ) : (
+            <Skeleton className="w-28 h-7 rounded-md" />
+          )}{" "}
+        </h1>
         <Button className="h-7" isIconOnly variant="light" onPress={onBack}>
           <ArrowLeft />
         </Button>

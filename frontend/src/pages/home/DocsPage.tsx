@@ -10,7 +10,7 @@ export default function DocsPage() {
   const [documents, setDocuments] = useState<DocType[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
-
+  const [title, setTitle] = useState("");
   useEffect(() => {
     if (!id) return;
 
@@ -20,7 +20,8 @@ export default function DocsPage() {
         const res = await apiClient.get(
           `${BACKEND_BASE_URL}/api/instance/${id}/documents`
         );
-        setDocuments(res.data || []);
+        setDocuments(res.data.documents || []);
+        setTitle(res.data.title);
       } catch (err) {
         console.error("Error fetching documents:", err);
       } finally {
@@ -38,7 +39,7 @@ export default function DocsPage() {
     <div className="flex h-screen w-full">
       <DocsSideBar
         selectedDoc={selectedDoc}
-        instanceTitle="HI"
+        instanceTitle={title}
         loading={loading}
         documents={documents}
         onBack={() => window.history.back()}

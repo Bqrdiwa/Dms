@@ -3,6 +3,7 @@ import {
   ReactFlowProvider,
   Background,
   useReactFlow,
+  Controls,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect, useMemo, useState } from "react";
@@ -86,7 +87,7 @@ const MapNode = ({ data }: any) => {
                 as={Link}
                 to={`/instance/${inst.instanceId}`}
               >
-                See documents
+                Show documents
               </Button>
             </div>
           }
@@ -175,6 +176,7 @@ function FlowInner({
       minZoom={0.5}
       maxZoom={4}
     >
+      <Controls />
       <Background />
     </ReactFlow>
   );

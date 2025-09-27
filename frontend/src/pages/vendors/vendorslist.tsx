@@ -170,7 +170,7 @@ export default function VendorListPage() {
           >
             {(item) => (
               <TableRow key={item.vendorId}>
-                <TableCell>{item.vendorId}</TableCell>
+                <TableCell>{item.id}</TableCell>
                 <TableCell>{item.name}</TableCell>
                 <TableCell>
                   <p className="text-default-600">{item.description}</p>
@@ -238,10 +238,10 @@ export default function VendorListPage() {
               <Input
                 label="Vendor ID"
                 isRequired
-                name="vendorId"
+                name={"id"}
                 labelPlacement="outside"
                 placeholder="Enter vendor id"
-                defaultValue={editingVendor?.vendorId}
+                defaultValue={editingVendor?.id}
               />
               <Input
                 label="Vendor Name"

@@ -59,7 +59,7 @@ export default function AddInstanceModal({
       apiClient
         .get("/category")
         .then((res) => {
-          setCategories(res.data.items ?? []);
+          setCategories(res.data.result ?? []);
         })
         .catch((err) => {
           console.error("❌ Failed to fetch categories:", err);

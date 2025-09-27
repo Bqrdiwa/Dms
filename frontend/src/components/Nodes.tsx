@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -12,6 +12,7 @@ import {
   applyEdgeChanges,
   type NodeChange,
   type EdgeChange,
+  ReactFlowProvider,
 } from "@xyflow/react";
 import apiClient from "../api/ApiClient";
 import {
@@ -31,6 +32,8 @@ import {
   DrawerHeader,
   DrawerBody,
   DrawerFooter,
+  Select,
+  SelectItem,
 } from "@heroui/react";
 import { Trash } from "lucide-react";
 
@@ -41,6 +44,7 @@ import AddInstanceModal from "./AddInstanceModal";
 interface Document {
   title: string;
   description: string;
+  createAt: string;
   file?: File;
 }
 
@@ -175,7 +179,7 @@ const nodeTypes: NodeTypes = {
   instance: InstanceNode,
 };
 
-export default function CategoryTree() {
+function CategoryTree() {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -189,7 +193,7 @@ export default function CategoryTree() {
   );
   const [loading, setLoading] = useState(false);
   const [loadingCategory, setLoadingCategory] = useState(false);
-
+  const rfRef = useRef<any>(null);
   // Drawer + Modal states
   const [drawerDocs, setDrawerDocs] = useState<Document[] | null>(null);
   const [docDetail, setDocDetail] = useState<Document | null>(null);
@@ -331,13 +335,23 @@ export default function CategoryTree() {
   console.log(selectedInstanceId);
   return (
     <div style={{ flex: 1, height: "100vh", position: "relative" }}>
-      <div className="absolute top-4 right-4 z-50">
+      {/* 🔹 Top-left controls */}
+      <div className="absolute w-full top-0 left-0 bg-background p-4  justify-between flex z-50">
+        <Select
+          hideEmptyContent
+          className="w-40"
+          disallowEmptySelection
+          color="primary"
+          defaultSelectedKeys={["area1"]}
+        >
+          <SelectItem key="area1">Area 1</SelectItem>
+        </Select>
         <Button color="primary" onPress={() => setCategoryModalOpen(true)}>
           New Category
         </Button>
       </div>
-
       <ReactFlow
+        ref={rfRef}
         nodes={nodes.map((n) => ({
           ...n,
           data:
@@ -353,8 +367,7 @@ export default function CategoryTree() {
       >
         <Background />
         <Controls />
-      </ReactFlow>
-
+      </ReactFlow>{" "}
       {/* Drawer for all documents */}
       <Drawer
         placement="right"
@@ -373,11 +386,16 @@ export default function CategoryTree() {
                 onClick={() => {
                   setDocDetail(doc);
                 }}
-                className="cursor-pointer p-2 rounded-md hover:bg-default-100"
+                className={
+                  "p-3 rounded-md cursor-pointer hover:bg-default-200 gap-3 items-end flex transition "
+                }
               >
-                <h4 className="font-medium text-sm">{doc.title}</h4>
-                <p className="text-xs text-default-600 truncate">
-                  {doc.description}
+                <div className="w-full">
+                  <p className="font-medium">{doc.title}</p>
+                  <p className="text-default-500 text-sm">{doc.description}</p>
+                </div>
+                <p className="text-sm font-light text-default-500">
+                  {new Date(doc.createAt).toLocaleDateString()}
                 </p>
               </div>
             ))}
@@ -387,7 +405,6 @@ export default function CategoryTree() {
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
-
       {/* Document detail modal */}
       {/* Document detail modal */}
       <Modal isOpen={!!docDetail} onOpenChange={() => setDocDetail(null)}>
@@ -412,7 +429,6 @@ export default function CategoryTree() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* Add Instance Modal */}
       <AddInstanceModal
         isOpen={modalOpen}
@@ -420,7 +436,6 @@ export default function CategoryTree() {
         categoryId={selectedCategoryId}
         onDone={refreshTree}
       />
-
       {/* Add Document Modal */}
       <Modal size="md" isOpen={docModalOpen} onOpenChange={setDocModalOpen}>
         <ModalContent>
@@ -462,7 +477,6 @@ export default function CategoryTree() {
           <ModalFooter className="py-2"></ModalFooter>
         </ModalContent>
       </Modal>
-
       {/* Category Modal */}
       <Modal
         size="md"
@@ -492,5 +506,13 @@ export default function CategoryTree() {
         </ModalContent>
       </Modal>
     </div>
+  );
+}
+
+export default function NodesPage() {
+  return (
+    <ReactFlowProvider>
+      <CategoryTree />
+    </ReactFlowProvider>
   );
 }
