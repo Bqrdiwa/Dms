@@ -140,8 +140,6 @@ export default function InstancesListPage() {
       <AddInstanceModal
         isOpen={isOpen}
         onClose={onClose}
-        categoryId={null}
-        handleCategorys
         onDone={async () => {
           mapId && fetchInstances(mapId, page);
         }}

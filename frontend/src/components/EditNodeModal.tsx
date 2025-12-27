@@ -13,28 +13,54 @@ import {
 } from "@heroui/react";
 import { useEffect, useState } from "react";
 import apiClient from "../api/ApiClient";
+import { Spinner } from "@heroui/react"; // Add a spinner for loading state
 import ImageMap from "./MapLocation";
 
-interface AddInstanceModalProps {
+interface EditNodeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDone: () => Promise<void>;
-  parentId?: string | null;
+  nodeId: string;
 }
 
-export default function AddInstanceModal({
+export default function EditNodeModal({
   isOpen,
   onClose,
   onDone,
-  parentId = null,
-}: AddInstanceModalProps) {
-  const [loading, setLoading] = useState(false);
+  nodeId,
+}: EditNodeModalProps) {
+  const [loading, setLoading] = useState(true);
+  const [nodeData, setNodeData] = useState<any | null>(null); // Store node data
   const [isEquipment, setIsEquipment] = useState(false);
   const [mapId, setMapId] = useState<null | string>(null);
   const [pos, setPos] = useState<[number, number] | null>(null);
 
+  // Fetch the current data of the node
+  useEffect(() => {
+    if (nodeId && isOpen) {
+      const fetchNodeData = async () => {
+        setLoading(true); // Show loading indicator
+        try {
+          const response = await apiClient.get(`/nodes/${nodeId}`);
+          const data = response.data;
+          setNodeData(data);
+          setIsEquipment(data.isEquipment);
+          setMapId(data.mapId || null);
+          setPos([data.posX || 0, data.posY || 0]);
+        } catch (err) {
+          addToast({ title: "Failed to load node data", color: "danger" });
+        } finally {
+          setLoading(false); // Hide loading indicator after data is fetched
+        }
+      };
+
+      fetchNodeData();
+    }
+  }, [nodeId, isOpen]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!nodeData) return;
 
     const formData = new FormData(e.currentTarget);
     const payload: any = {
@@ -42,8 +68,6 @@ export default function AddInstanceModal({
       description: formData.get("description") as string,
       isEquipment,
     };
-
-    if (parentId) payload.parentId = parentId;
 
     if (isEquipment) {
       if (!mapId || !pos) {
@@ -60,53 +84,62 @@ export default function AddInstanceModal({
 
     try {
       setLoading(true);
-      await apiClient.post("/nodes/", payload);
-      addToast({ title: "Node created successfully", color: "success" });
+      await apiClient.put(`/nodes/${nodeId}`, payload); // PUT request to update
+      addToast({ title: "Node updated successfully", color: "success" });
 
-      // Reset state
-      setIsEquipment(false);
-      setMapId(null);
-      setPos(null);
       onClose();
-      await onDone();
+      await onDone(); // Trigger refresh or update of tree
     } catch (err) {
-      console.error(err);
-      addToast({ title: "Failed to create node", color: "danger" });
+      addToast({ title: "Failed to update node", color: "danger" });
     } finally {
       setLoading(false);
     }
   };
-
   useEffect(() => {
-    setIsEquipment(false);
-    setPos(null);
+    setNodeData(null);
+    setLoading(true);
   }, [isOpen]);
+  // Show loading spinner if data is being fetched
+  if (!nodeData) {
+    return (
+      <Modal size="3xl" isOpen={isOpen} onOpenChange={onClose}>
+        <ModalContent>
+          <ModalHeader>Edit Node</ModalHeader>
+          <ModalBody className="flex justify-center items-center">
+            <Spinner size="lg" color="primary" /> {/* Show loading spinner */}
+          </ModalBody>
+          <ModalFooter />
+        </ModalContent>
+      </Modal>
+    );
+  }
 
   return (
     <Modal size="3xl" isOpen={isOpen} onOpenChange={onClose}>
       <ModalContent>
-        <ModalHeader>Add New Node</ModalHeader>
+        <ModalHeader>Edit Node</ModalHeader>
         <ModalBody>
           <Form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <Input
               isRequired
               name="title"
               label="Title"
+              defaultValue={nodeData.title}
               placeholder="Enter node title"
               labelPlacement="outside"
             />
 
             <Textarea
-              isRequired
               rows={4}
               name="description"
+              defaultValue={nodeData.description}
               label="Description"
               placeholder="Enter description"
               labelPlacement="outside"
             />
 
             <Checkbox
-              checked={isEquipment}
+              isSelected={isEquipment}
               onChange={(e) => setIsEquipment(e.target.checked)}
             >
               Is Equipment (enable map position)

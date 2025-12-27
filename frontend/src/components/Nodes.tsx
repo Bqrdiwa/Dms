@@ -14,351 +14,307 @@ import {
   type EdgeChange,
   ReactFlowProvider,
 } from "@xyflow/react";
-import apiClient from "../api/ApiClient";
 import {
   Button,
-  Link,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Input,
-  Form,
-  Textarea,
   addToast,
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerBody,
-  DrawerFooter,
   Select,
   SelectItem,
+  Chip,
+  Link,
 } from "@heroui/react";
-import { Trash } from "lucide-react";
-
-import { BACKEND_BASE_URL } from "../api/Setting";
-import { Link as RouterLink } from "react-router-dom";
+import { Edit, Trash } from "lucide-react";
+import apiClient from "../api/ApiClient";
 import AddInstanceModal from "./AddInstanceModal";
-// ---------- Types ----------
-interface Document {
+import AddDocumentModal from "./AddDocumentModal";
+import dagre from "dagre";
+import { Link as RouterLink } from "react-router-dom";
+import EditNodeModal from "./EditNodeModal";
+import DeleteNodeModal from "./DeleteNodeModal";
+import { BACKEND_BASE_URL } from "../api/Setting";
+import type { MapItem } from "../pages/home/HomePage";
+// Inside your NodeTree component, replace layoutNodes with:
+
+// ---------- Node Types ----------
+interface TreeNode {
+  nodeId: string;
   title: string;
   description: string;
-  createAt: string;
-  file?: File;
+  isEquipment: boolean;
+  documentCounts?: number;
+  posX?: number;
+  posY?: number;
+  parentId?: string | null;
+  children?: TreeNode[];
 }
 
-interface Instance {
-  instanceId: string;
+// ---------- Custom ReactFlow Node ----------
+interface NodeCardData extends Record<string, unknown> {
   title: string;
-  documents?: Document[];
+  description: string;
+  isEquipment: boolean;
+  documentCounts?: number;
+  onAddChild?: (parentId: string) => void;
+  onAddDocument?: (nodeId: string) => void;
+  onEditNode?: (nodeId: string) => void;
+  onDeleteNode?: (nodeId: string) => void;
 }
 
-interface Category {
-  categoryId: string;
-  name: string;
-  documentCount: number;
-  instanceCount: number;
-  instances: Instance[];
-}
-
-interface ApiResponse {
-  result: Category[];
-}
-
-// ---------- Custom Nodes ----------
-const CategoryNode = ({
-  data,
-  id,
-}: {
-  data: {
-    documentCount: number;
-    instanceCount: number;
-    label: string;
-    onAddNode?: (id: string) => void;
-  };
-  id: string;
-}) => {
-  const handleAddNode = () => {
-    data.onAddNode?.(id);
-  };
+// ---------- Custom ReactFlow Node ----------
+const NodeCard = ({ data, id }: { data: NodeCardData; id: string }) => {
+  const handleAddChild = () => data.onAddChild?.(id);
+  const handleAddDocument = () => data.onAddDocument?.(id);
+  const handleEditNode = () => data.onEditNode?.(id);
+  const handleDeleteNode = () => data.onDeleteNode?.(id);
+  // Decide background based on depth
+  const bgColor = !data.isEquipment
+    ? "bg-secondary text-white"
+    : data.depth && (data.depth as any) % 2 === 0
+    ? "bg-primary-800 text-white"
+    : "bg-primary text-white";
 
   return (
-    <div className="relative w-64 rounded-md bg-background overflow-visible">
-      <div className="bg-secondary flex w-full p-1 rounded-t-md justify-between text-[.8rem] text-center font-medium items-center px-2 text-background">
-        <p>{data.label}</p>
-        <Trash className="w-3" />
-      </div>
-      <div className="flex gap-4 items-center justify-center p-2 text-center">
-        <div className="flex flex-col items-center gap-2">
-          <h4 className="text-[.7rem] font-medium">{data.documentCount}</h4>
-          <h5 className="text-default-600 text-[.6rem]">Documents</h5>
+    <div
+      className={`relative w-64 rounded-md overflow-visible border border-default-200 shadow-sm`}
+    >
+      <div
+        className={`flex ${bgColor} w-full p-1 rounded-t-md justify-between text-[.8rem] font-medium items-center px-2`}
+      >
+        <p>{data.title}</p>
+        <div className="flex gap-1">
+          <Edit
+            className="w-3 cursor-pointer opacity-70 hover:opacity-100"
+            onClick={handleEditNode} // Trigger edit on click
+          />
+          <Trash
+            className="w-3 cursor-pointer opacity-70 hover:opacity-100"
+            onClick={handleDeleteNode} // Open delete confirmation modal
+          />
         </div>
-        <div className="flex flex-col items-center gap-2">
-          <h4 className="text-[.7rem] font-medium">{data.instanceCount}</h4>
-          <h5 className="text-default-600 text-[.6rem]">Instances</h5>
+      </div>
+      <div className="flex flex-col p-2 text-[.7rem] text-default-700">
+        {data.description && <p>{data.description}</p>}
+        <div className="flex w-full justify-between">
+          {data.documentCounts !== undefined && (
+            <p className="mt-1 text-xs text-default-500">
+              Documents: {data.documentCounts}
+            </p>
+          )}
+          {data.isEquipment && (
+            <Chip size="sm" className="text-[.5rem]" color="primary">
+              equipment
+            </Chip>
+          )}
+        </div>
+        <div className="flex mt-2 justify-center">
+          <Link
+            className="text-[.6rem]"
+            as={RouterLink}
+            to={`/node/${data.nodeId}`}
+          >
+            Show all documents
+          </Link>
         </div>
       </div>
-
+      <Handle type="target" position={Position.Top} />
       <Handle type="source" position={Position.Bottom} />
 
-      <Button
-        onPress={handleAddNode}
-        style={{ height: "20px" }}
-        className="absolute top-full w-14 min-w-[unset] rounded-full mt-1 left-0 border-1 border-default-200 leading-0 p-0 text-[.5rem]"
-      >
-        Add Node
-      </Button>
+      <div className="absolute top-full flex gap-1 mt-1 left-0">
+        <Button
+          onPress={handleAddChild}
+          style={{ height: "20px" }}
+          className="w-14 min-w-[unset] rounded-full border-1 border-default-200 text-[.5rem]"
+        >
+          Add Node
+        </Button>
+        <Button
+          onPress={handleAddDocument}
+          style={{ height: "20px" }}
+          className="w-20 min-w-[unset] rounded-full border-1 border-default-200 text-[.5rem]"
+        >
+          Add Document
+        </Button>
+      </div>
     </div>
   );
 };
-
-const InstanceNode = ({
-  data,
-}: {
-  data: {
-    label: string;
-    documents?: Document[];
-    onShowAllDocs?: (docs: Document[]) => void;
-    onShowDocDetail?: (doc: Document) => void;
-    onAddDocument?: () => void;
-  };
-}) => {
-  const docs = data.documents ?? [];
-
-  return (
-    <div className="relative rounded-md w-64 bg-background overflow-visible">
-      <div className="bg-secondary-800 flex w-full p-1  rounded-t-md justify-between text-[.8rem] text-center font-medium items-center px-2 text-background">
-        <p>{data.label}</p>
-        <Trash className="w-3" />
-      </div>
-      <div className="flex flex-col items-center text-center p-2">
-        {docs.length === 0 ? (
-          <p className="italic text-xs text-default-500">No documents</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-3 w-full gap-1 mb-2">
-              {docs.slice(0, 3).map((doc, i) => (
-                <div
-                  key={i}
-                  onClick={() => data.onShowDocDetail?.(doc)}
-                  className="bg-default-100 cursor-pointer text-[.6rem] rounded-sm p-1 hover:bg-default-200"
-                >
-                  {doc.title}
-                </div>
-              ))}
-            </div>
-            {docs.length > 3 && (
-              <Link
-                className="text-[.6rem] cursor-pointer"
-                onClick={() => data.onShowAllDocs?.(docs)}
-              >
-                Show All Documents
-              </Link>
-            )}
-          </>
-        )}
-      </div>
-
-      <Handle type="target" position={Position.Top} />
-
-      {/* Add Document Button like Add Node */}
-      <Button
-        onPress={data.onAddDocument}
-        style={{ height: "20px" }}
-        className="absolute top-full w-14 min-w-[unset] rounded-full mt-1 left-0 border-1 border-default-200 leading-0 p-0 text-[.5rem]"
-      >
-        Add Doc
-      </Button>
-    </div>
-  );
-};
-
+// ---------- ReactFlow Node Types ----------
 const nodeTypes: NodeTypes = {
-  category: CategoryNode,
-  instance: InstanceNode,
+  node: NodeCard,
 };
 
-function CategoryTree() {
-  const [nodes, setNodes] = useState<Node[]>([]);
+// ---------- Main Tree ----------
+function NodeTree() {
+  const [nodes, setNodes] = useState<Node<NodeCardData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [docModalOpen, setDocModalOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
-    null
-  );
-  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(
-    null
-  );
-  const [loading, setLoading] = useState(false);
-  const [loadingCategory, setLoadingCategory] = useState(false);
+  const [parentId, setParentId] = useState<string | null>(null);
   const rfRef = useRef<any>(null);
-  // Drawer + Modal states
-  const [drawerDocs, setDrawerDocs] = useState<Document[] | null>(null);
-  const [docDetail, setDocDetail] = useState<Document | null>(null);
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [editNodeModalOpen, setEditNodeModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [mapLoading,setMapLoading] = useState(true)
+  const [maps, setMaps] = useState<MapItem[]>([]);
 
-  // Form state for adding document
-  const [newDocTitle, setNewDocTitle] = useState("");
-  const [newDocDescription, setNewDocDescription] = useState("");
-  const [newDocFile, setNewDocFile] = useState<File | null>(null);
-
-  const onNodesChange = (changes: NodeChange[]) => {
-    setNodes((nds) => applyNodeChanges(changes, nds));
+  const onEditNode = (nodeId: string) => {
+    setSelectedNodeId(nodeId);
+    setEditNodeModalOpen(true);
+  };
+  const onNodesChange = (changes: NodeChange<Node<NodeCardData>>[]) => {
+    setNodes((nds) => applyNodeChanges(changes, nds) as Node<NodeCardData>[]);
   };
 
-  const onEdgesChange = (changes: EdgeChange[]) => {
+  const onEdgesChange = (changes: EdgeChange[]) =>
     setEdges((eds) => applyEdgeChanges(changes, eds));
-  };
 
+  const onDeleteNode = (nodeId: string) => {
+    setSelectedNodeId(nodeId);
+    setDeleteModalOpen(true);
+  };
   const refreshTree = async () => {
-    const res = await apiClient.get<ApiResponse>("/category/tree");
+    try {
+      const res = await apiClient.get<{ result: TreeNode[] }>("/nodes/tree");
+      const layoutTreeWithDagre = (treeNodes: TreeNode[]) => {
+        const g = new dagre.graphlib.Graph();
+        g.setGraph({ rankdir: "TB", ranksep: 100, nodesep: 50 });
+        g.setDefaultEdgeLabel(() => ({}));
 
-    const newNodes: Node[] = [];
-    const newEdges: Edge[] = [];
+        const nodesMap: Record<string, Node<NodeCardData>> = {};
+        const edgesArr: Edge[] = [];
 
-    const categorySpacingX = 300; // horizontal spacing between categories
-    const instanceSpacingY = 120; // vertical spacing between instances
-
-    res.data.result.forEach((category, catIdx) => {
-      const blockStartX = catIdx * categorySpacingX;
-
-      // place category node horizontally in a row
-      newNodes.push({
-        id: category.categoryId,
-        position: { x: blockStartX, y: 0 },
-        data: {
-          instanceCount: category.instanceCount,
-          documentCount: category.documentCount,
-          label: category.name,
-        },
-        type: "category",
-      });
-
-      category.instances.forEach((instance, i) => {
-        // stack instances vertically below their category
-        newNodes.push({
-          id: instance.instanceId,
-          position: { x: blockStartX, y: (i + 1) * instanceSpacingY },
-          data: {
-            label: instance.title,
-            documents: instance.documents ?? [],
-
-            onShowAllDocs: (docs: Document[]) => {
-              setDrawerDocs(docs);
-              setSelectedInstanceId(instance.instanceId);
+        const traverse = (
+          node: TreeNode,
+          parentId: string | null = null,
+          depth = 0
+        ) => {
+          nodesMap[node.nodeId] = {
+            id: node.nodeId,
+            type: "node",
+            data: {
+              title: node.title,
+              description: node.description,
+              isEquipment: node.isEquipment,
+              nodeId: node.nodeId,
+              documentCounts: node.documentCounts ?? 0,
+              depth, // <-- important for zebra coloring
+              onEditNode: (id: string) => {
+                onEditNode(id);
+              },
+              onAddChild: (id: string) => {
+                setParentId(id);
+                setModalOpen(true);
+              },
+              onDeleteNode: (id: string) => {
+                onDeleteNode(id);
+              },
+              onAddDocument: (id: string) => {
+                setSelectedNodeId(id);
+                setDocModalOpen(true);
+              },
             },
-            onShowDocDetail: (doc: Document) => {
-              setDocDetail(doc);
+            position: { x: 0, y: 0 },
+          };
+
+          g.setNode(node.nodeId, { width: 260, height: 140 });
+
+          if (parentId) {
+            edgesArr.push({
+              id: `${parentId}-${node.nodeId}`,
+              source: parentId,
+              target: node.nodeId,
+              style: { stroke: "#888" },
+            });
+            g.setEdge(parentId, node.nodeId);
+          }
+
+          node.children?.forEach((child) =>
+            traverse(child, node.nodeId, depth + 1)
+          );
+        };
+
+        treeNodes.forEach((root) => traverse(root));
+
+        dagre.layout(g);
+
+        const layoutedNodes = Object.values(nodesMap).map((n) => {
+          const nodePos = g.node(n.id);
+          return {
+            ...n,
+            position: {
+              x: nodePos.x - 130,
+              y: nodePos.y - 70,
             },
-            onAddDocument: () => {
-              setSelectedInstanceId(instance.instanceId);
-              setDocModalOpen(true);
-            },
-          },
-          type: "instance",
+          };
         });
 
-        newEdges.push({
-          id: `${category.categoryId}-${instance.instanceId}`,
-          source: category.categoryId,
-          target: instance.instanceId,
-          style: { stroke: "#888" },
-        });
-      });
-    });
+        return { nodes: layoutedNodes, edges: edgesArr };
+      };
 
-    setNodes(newNodes);
-    setEdges(newEdges);
-  };
+      const { nodes: newNodes, edges: newEdges } = layoutTreeWithDagre(
+        res.data.result
+      );
+      setNodes(newNodes);
+      setEdges(newEdges);
 
-  const handleAddNode = (categoryId: string) => {
-    setSelectedCategoryId(categoryId);
-    setModalOpen(true);
-  };
-
-  // Submit new category
-  const handleSubmitCategory = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const payload = { name: formData.get("name") as string };
-
-    try {
-      setLoadingCategory(true);
-      await apiClient.post("/category/", payload);
-      setCategoryModalOpen(false);
-      await refreshTree();
-      addToast({ title: "Category created", color: "success" });
+      setTimeout(() => {
+        rfRef.current?.fitView({ padding: 0.3 });
+      }, 300);
     } catch (err) {
-      console.error("Failed to create category", err);
-      addToast({ title: "Failed to create category", color: "danger" });
-    } finally {
-      setLoadingCategory(false);
-    }
-  };
-
-  // Submit new document
-  const handleSubmitDocument = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!selectedInstanceId || !newDocFile) {
-      addToast({ title: "Please select a file!", color: "warning" });
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("title", newDocTitle);
-    formData.append("description", newDocDescription);
-    formData.append("instanceId", selectedInstanceId);
-    formData.append("file", newDocFile);
-
-    try {
-      setLoading(true);
-      await apiClient.post(BACKEND_BASE_URL + "/api/document/", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      setDocModalOpen(false);
-      setNewDocTitle("");
-      setNewDocDescription("");
-      setNewDocFile(null);
-      await refreshTree();
-    } catch (err) {
-      console.error("Failed to add document", err);
-      addToast({ title: "Failed to add document", color: "danger" });
-    } finally {
-      setLoading(false);
+      console.error("Failed to load node tree", err);
+      addToast({ title: "Failed to load node tree", color: "danger" });
     }
   };
 
   useEffect(() => {
     refreshTree();
   }, []);
-  console.log(selectedInstanceId);
+  useEffect(() => {
+    const fetchMaps = async () => {
+      setMapLoading(true);
+      try {
+        const res = await apiClient.get(BACKEND_BASE_URL+"/api/map/all");
+        setMaps(res.data || []);
+
+      } catch (err) {
+        console.error("Error fetching maps:", err);
+      } finally {
+        setMapLoading(false);
+      }
+    };
+
+    fetchMaps();
+  }, []);
+
   return (
     <div style={{ flex: 1, height: "100vh", position: "relative" }}>
-      {/* 🔹 Top-left controls */}
-      <div className="absolute w-full top-0 left-0 bg-background p-4  justify-between flex z-50">
+      {/* 🔹 Top Controls */}
+      <div className="absolute w-full top-0 left-0 bg-transparent p-4 justify-between flex z-50">
         <Select
-          hideEmptyContent
+          placeholder="Map"
           className="w-40"
           disallowEmptySelection
-          color="primary"
-          defaultSelectedKeys={["area1"]}
+          isLoading={mapLoading}
+          selectedKeys={["0"]}
         >
-          <SelectItem key="area1">Area 1</SelectItem>
+          {maps.map((m,idx) => (
+            <SelectItem key={idx}>{m.name}</SelectItem>
+          ))}
         </Select>
-        <Button color="primary" onPress={() => setCategoryModalOpen(true)}>
-          New Category
+        <Button
+          color="primary"
+          onPress={() => {
+            setParentId(null);
+            setModalOpen(true);
+          }}
+        >
+          New Root
         </Button>
       </div>
+
+      {/* 🔹 React Flow Canvas */}
       <ReactFlow
         ref={rfRef}
-        nodes={nodes.map((n) => ({
-          ...n,
-          data:
-            n.type === "category"
-              ? { ...n.data, onAddNode: handleAddNode }
-              : n.data,
-        }))}
+        nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
@@ -367,144 +323,40 @@ function CategoryTree() {
       >
         <Background />
         <Controls />
-      </ReactFlow>{" "}
-      {/* Drawer for all documents */}
-      <Drawer
-        placement="right"
-        isOpen={!!drawerDocs}
-        onOpenChange={() => setDrawerDocs(null)}
-      >
-        <DrawerContent>
-          <DrawerHeader>All Documents</DrawerHeader>
-          <DrawerBody>
-            {drawerDocs?.length === 0 && (
-              <p className="italic text-xs text-default-500">No documents</p>
-            )}
-            {drawerDocs?.map((doc, i) => (
-              <div
-                key={i}
-                onClick={() => {
-                  setDocDetail(doc);
-                }}
-                className={
-                  "p-3 rounded-md cursor-pointer hover:bg-default-200 gap-3 items-end flex transition "
-                }
-              >
-                <div className="w-full">
-                  <p className="font-medium">{doc.title}</p>
-                  <p className="text-default-500 text-sm">{doc.description}</p>
-                </div>
-                <p className="text-sm font-light text-default-500">
-                  {new Date(doc.createAt).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
-          </DrawerBody>
-          <DrawerFooter>
-            <Button onPress={() => setDrawerDocs(null)}>Close</Button>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
-      {/* Document detail modal */}
-      {/* Document detail modal */}
-      <Modal isOpen={!!docDetail} onOpenChange={() => setDocDetail(null)}>
-        <ModalContent>
-          <ModalHeader>{docDetail?.title}</ModalHeader>
-          <ModalBody>
-            <p>{docDetail?.description}</p>
-          </ModalBody>
-          <ModalFooter>
-            {selectedInstanceId && (
-              <Button
-                as={RouterLink}
-                to={`/instance/${selectedInstanceId}`}
-                color="primary"
-              >
-                Open Document Page
-              </Button>
-            )}
-            <Button color="default" onPress={() => setDocDetail(null)}>
-              Close
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-      {/* Add Instance Modal */}
+      </ReactFlow>
+
+      {/* 🔹 Add Node Modal */}
       <AddInstanceModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        categoryId={selectedCategoryId}
         onDone={refreshTree}
+        parentId={parentId}
       />
-      {/* Add Document Modal */}
-      <Modal size="md" isOpen={docModalOpen} onOpenChange={setDocModalOpen}>
-        <ModalContent>
-          <ModalHeader>Add Document</ModalHeader>
-          <ModalBody>
-            <Form
-              onSubmit={handleSubmitDocument}
-              className="flex flex-col gap-4"
-            >
-              <Input
-                isRequired
-                placeholder="Enter document title..."
-                label="Title"
-                value={newDocTitle}
-                onChange={(e) => setNewDocTitle(e.target.value)}
-              />
-              <Textarea
-                isRequired
-                placeholder="Enter document description..."
-                label="Description"
-                value={newDocDescription}
-                onChange={(e) => setNewDocDescription(e.target.value)}
-                rows={4}
-              />
-              <Input
-                isRequired
-                type="file"
-                accept="application/pdf"
-                label="PDF File"
-                onChange={(e) => setNewDocFile(e.target.files?.[0] ?? null)}
-              />
-              <div className="justify-end w-full flex">
-                <Button isLoading={loading} type="submit" color="primary">
-                  Submit
-                </Button>
-              </div>
-            </Form>
-          </ModalBody>
-          <ModalFooter className="py-2"></ModalFooter>
-        </ModalContent>
-      </Modal>
-      {/* Category Modal */}
-      <Modal
-        size="md"
-        isOpen={categoryModalOpen}
-        onOpenChange={setCategoryModalOpen}
-      >
-        <ModalContent>
-          <ModalHeader>Create Category</ModalHeader>
-          <ModalBody>
-            <Form
-              onSubmit={handleSubmitCategory}
-              className="flex flex-col gap-4"
-            >
-              <Input
-                isRequired
-                placeholder="Enter category name..."
-                label="Name"
-                name="name"
-                labelPlacement="outside"
-              />
-              <Button isLoading={loadingCategory} type="submit" color="primary">
-                Create
-              </Button>
-            </Form>
-          </ModalBody>
-          <ModalFooter className="py-2"></ModalFooter>
-        </ModalContent>
-      </Modal>
+
+      {/* 🔹 Add Document Modal */}
+      <AddDocumentModal
+        isOpen={docModalOpen}
+        onClose={() => setDocModalOpen(false)}
+        onDone={refreshTree}
+        nodeId={selectedNodeId}
+      />
+
+      {selectedNodeId && (
+        <EditNodeModal
+          isOpen={editNodeModalOpen}
+          onClose={() => setEditNodeModalOpen(false)}
+          onDone={refreshTree}
+          nodeId={selectedNodeId}
+        />
+      )}
+      {selectedNodeId && (
+        <DeleteNodeModal
+          isOpen={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          nodeId={selectedNodeId}
+          onDone={refreshTree}
+        />
+      )}
     </div>
   );
 }
@@ -512,7 +364,7 @@ function CategoryTree() {
 export default function NodesPage() {
   return (
     <ReactFlowProvider>
-      <CategoryTree />
+      <NodeTree />
     </ReactFlowProvider>
   );
 }

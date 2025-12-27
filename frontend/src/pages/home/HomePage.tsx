@@ -1,36 +1,82 @@
 import { useEffect, useState } from "react";
 import apiClient from "../../api/ApiClient";
 import { BACKEND_BASE_URL } from "../../api/Setting";
-import SideBar, { getCategoryColor, type Instance } from "./SideBar";
+import SideBar, { getCategoryColor, type NodeItem } from "./SideBar";
 import MapView from "./mapPreview";
+
 export interface Category {
   name: string;
   categoryId: string;
 }
+
+export interface MapItem {
+  mapId: string;
+  name: string;
+}
+
 export default function HomePage() {
-  const [equipments, setEquipments] = useState<Instance[]>([]);
+  const [maps, setMaps] = useState<MapItem[]>([]);
+  const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
+
+  const [equipments, setEquipments] = useState<NodeItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [mapData, setMapData] = useState<any>(null);
-  const [focusInstance, setFocusInstance] = useState<Instance | null>(null);
+  const [focusInstance, setFocusInstance] = useState<NodeItem | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
 
+  // -------------------------
+  // Fetch ALL maps
+  // -------------------------
+  useEffect(() => {
+    const fetchMaps = async () => {
+      setLoading(true);
+      try {
+        const res = await apiClient.get(BACKEND_BASE_URL+"/api/map/all");
+        setMaps(res.data || []);
+
+        // Auto-select first map if nothing selected
+        if (!selectedMapId && res.data?.length > 0) {
+          setSelectedMapId(res.data[0].mapId);
+        }
+      } catch (err) {
+        console.error("Error fetching maps:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMaps();
+  }, []);
+
+  // -------------------------
+  // Fetch CATEGORIES
+  // -------------------------
   useEffect(() => {
     const fetchCategories = async () => {
-      setLoading(true);
       try {
         const res = await apiClient.get("/category");
         setCategories(res.data.result || []);
       } catch (err) {
         console.error("Error fetching categories:", err);
-      } finally {
-        setLoading(false);
       }
     };
+
+    fetchCategories();
+  }, []);
+
+  // -------------------------
+  // Fetch MAP OVERVIEW (depends on selectedMapId)
+  // -------------------------
+  useEffect(() => {
+    if (!selectedMapId) return;
+
     const fetchMapOverview = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        const res = await apiClient.get(BACKEND_BASE_URL + "/api/map/overview");
-        setEquipments(res.data.instances || []);
+        const res = await apiClient.get(
+          `${BACKEND_BASE_URL}/api/map/overview?mapId=${selectedMapId}`
+        );
+        setEquipments(res.data.nodes || []);
         setMapData(res.data);
       } catch (err) {
         console.error("Error fetching map overview:", err);
@@ -38,21 +84,24 @@ export default function HomePage() {
         setLoading(false);
       }
     };
-    fetchCategories();
+
     fetchMapOverview();
-  }, []);
+  }, [selectedMapId]);
 
   return (
     <div className="flex flex-1 h-screen">
       {/* Sidebar */}
       <SideBar
-        equipments={equipments}
+        nodes={equipments}
+        maps={maps}
         loading={loading}
-        focusInstance={focusInstance}
+        selectedMapId={selectedMapId}
+        onSelectMap={(id) => setSelectedMapId(id)}
+        focusNode={focusInstance}
         onSelect={(inst) => setFocusInstance(inst)}
       />
 
-      {/* Main Map View */}
+      {/* Map View */}
       <div className="flex-1">
         {mapData && (
           <MapView
@@ -60,11 +109,11 @@ export default function HomePage() {
             mapUrl={mapData.imageUrl}
             widthPx={mapData.widthPx}
             heightPx={mapData.heightPx}
-            instances={equipments.map((e) => ({
+            nodes={equipments.map((e) => ({
               ...e,
-              color: getCategoryColor(e.categoryId),
+              color: getCategoryColor(e.nodeId),
             }))}
-            focusInstance={focusInstance}
+            focusNode={focusInstance}
           />
         )}
       </div>

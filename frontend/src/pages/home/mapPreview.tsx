@@ -8,8 +8,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useEffect, useMemo, useState } from "react";
 import Marker from "./Marker";
-import { getCategoryColor, type Instance } from "./SideBar";
-import { Button, Chip, Image, Tooltip } from "@heroui/react";
+import { getCategoryColor, type NodeItem } from "./SideBar";
+import { Button, Chip, Tooltip } from "@heroui/react";
 import { Link } from "react-router-dom";
 import type { Category } from "./HomePage";
 
@@ -18,93 +18,87 @@ interface MapViewProps {
   selectedCategory?: string[];
   widthPx: number;
   heightPx: number;
-  instances: Instance[];
-  focusInstance?: Instance | null;
+  nodes: NodeItem[];
+  focusNode?: NodeItem | null;
   categoryChips: Category[];
 }
 
 const MapNode = ({ data }: any) => {
   useEffect(() => {
-    if (!data.instances) return;
+    if (!data.nodes) return;
 
-    data.instances.forEach((ins: Instance) => {
-      if (data.focusInstance?.instanceId === ins.instanceId) {
-        // only set tooltip if focusInstance matches
+    data.nodes.forEach((node: NodeItem) => {
+      if (data.focusNode?.nodeId === node.nodeId) {
         setTimeout(() => {
-          if (data.focusInstance?.instanceId === ins.instanceId) {
-            data.setIsOpen(ins.instanceId);
+          if (data.focusNode?.nodeId === node.nodeId) {
+            data.setIsOpen(node.nodeId);
           }
         }, 400);
       } else {
         data.setIsOpen(null);
       }
     });
-  }, [data.focusInstance, data.instances]);
+  }, [data.focusNode, data.nodes]);
 
   return (
     <div
       style={{ position: "relative", width: data.width, height: data.height }}
     >
-      <Image
+      <img
         src={data.src}
-        className="z-0"
         alt="Map"
-        width={data.width}
-        height={data.height}
+        style={{ width: data.width, height: data.height, userSelect: "none" }}
         draggable={false}
       />
-      {data.instances.map((inst: Instance) => (
-        <Tooltip
-          showArrow
-          placement="left"
-          closeDelay={0}
-          isOpen={data.isOpen ? data.isOpen == inst.instanceId : undefined}
-          content={
-            <div className="flex flex-col p-2">
-              <div className="flex items-center mb-2 justify-between w-full">
-                <h1 className="text-md  font-semibold">{inst.vendorName}</h1>
+      {data.nodes.map((node: NodeItem) => {
+        const x = node.posX * data.width;
+        const y = node.posY * data.height;
+        const isFocused = data.isOpen === node.nodeId;
 
-                <Chip color="success" variant="flat" size="sm">
-                  Active
-                </Chip>
+        return (
+          <Tooltip
+            key={node.nodeId}
+            showArrow
+            placement="left"
+            isOpen={isFocused}
+            content={
+              <div className="flex flex-col p-2">
+                <div className="flex justify-between gap-10 items-center w-full">
+                  <h1 className="text-lg font-semibold">{node.title}</h1>
+                  <Chip color="primary" size="sm">
+                    {node.documentCount} DOCS
+                  </Chip>
+                </div>
+                {node.description && (
+                  <p className="text-sm text-default-600">{node.description}</p>
+                )}
+                <Button
+                  size="sm"
+                  color="primary"
+                  className="mt-2"
+                  as={Link}
+                  to={`/node/${node.nodeId}`}
+                >
+                  All documents
+                </Button>
               </div>
-              <div className="flex w-full justify-between gap-5">
-                <p>Category name:</p>
-                <p>{inst.categoryName}</p>
-              </div>
-              <div className="flex w-full justify-between gap-5">
-                <p>Vendor name:</p>
-                <p>{inst.vendorName}</p>
-              </div>
-              <div className="flex w-full justify-between gap-5">
-                <p>Tag name:</p>
-                <p>{inst.tagName}</p>
-              </div>
-              <Button
-                size="sm"
-                color="primary"
-                className="mt-7"
-                as={Link}
-                to={`/instance/${inst.instanceId}`}
-              >
-                Show documents
-              </Button>
-            </div>
-          }
-        >
-          <div
-            key={inst.tagId}
-            style={{
-              position: "absolute",
-              left: inst.posX * data.width,
-              top: inst.posY * data.height,
-              transform: "translate(-50%, -50%)",
-            }}
+            }
           >
-            <Marker color={inst.color as any} />
-          </div>
-        </Tooltip>
-      ))}
+            <div
+              style={{
+                position: "absolute",
+                left: x,
+                top: y,
+                transform: "translate(-50%, -50%)",
+                cursor: "pointer",
+                zIndex: isFocused ? 10 : 1,
+              }}
+            >
+              <Marker color="red" />
+            </div>
+          </Tooltip>
+        );
+      })}
     </div>
   );
 };
@@ -113,14 +107,13 @@ function FlowInner({
   mapUrl,
   widthPx,
   heightPx,
-  selectedCategory,
-  instances,
-  focusInstance,
+  nodes,
+  focusNode,
 }: MapViewProps) {
   const { setCenter, fitView } = useReactFlow();
   const [isOpen, setIsOpen] = useState<string | null>(null);
 
-  const nodes = useMemo(
+  const NODES = useMemo(
     () => [
       {
         id: "map",
@@ -129,42 +122,33 @@ function FlowInner({
         data: {
           src: mapUrl,
           width: widthPx,
+          height: heightPx,
+          nodes,
+          focusNode,
           isOpen,
           setIsOpen,
-          height: heightPx,
-          instances: instances,
-          focusInstance,
         },
         draggable: false,
       },
     ],
-    [
-      mapUrl,
-      widthPx,
-      heightPx,
-      instances,
-      selectedCategory,
-      focusInstance,
-      isOpen,
-    ]
+    [mapUrl, widthPx, heightPx, nodes, focusNode, isOpen]
   );
 
   const nodeTypes = useMemo(() => ({ mapNode: MapNode }), []);
 
-  // Focus instance when it changes
   useEffect(() => {
-    if (focusInstance) {
-      const x = focusInstance.posX * widthPx;
-      const y = focusInstance.posY * heightPx;
+    if (focusNode) {
+      const x = focusNode.posX * widthPx;
+      const y = focusNode.posY * heightPx;
       setCenter(x, y, { zoom: 2, duration: 500 });
     } else {
       fitView({ padding: 0.1 });
     }
-  }, [focusInstance, setCenter, fitView, widthPx, heightPx]);
+  }, [focusNode, setCenter, fitView, widthPx, heightPx]);
 
   return (
     <ReactFlow
-      nodes={nodes}
+      nodes={NODES}
       edges={[]}
       onMoveStart={() => setIsOpen(null)}
       nodeTypes={nodeTypes}
@@ -184,15 +168,15 @@ function FlowInner({
 
 export default function MapView(props: MapViewProps) {
   const [selectedCategorys, setSelectedCategorys] = useState<string[]>([]);
-  useEffect(() => {
-    if (
-      props.focusInstance &&
-      selectedCategorys.includes(props.focusInstance.categoryId)
-    )
-      setSelectedCategorys((prev) =>
-        prev.filter((item) => item !== props.focusInstance?.categoryId)
-      );
-  }, [props.focusInstance]);
+  // useEffect(() => {
+  //   if (
+  //     props.focusInstance &&
+  //     selectedCategorys.includes(props.focusInstance.categoryId)
+  //   )
+  //     setSelectedCategorys((prev) =>
+  //       prev.filter((item) => item !== props.focusInstance?.categoryId)
+  //     );
+  // }, [props.focusInstance]);
   return (
     <ReactFlowProvider>
       <div className="flex flex-col h-full w-full">
@@ -200,9 +184,7 @@ export default function MapView(props: MapViewProps) {
         <div className="flex-1 w-full h-full">
           <FlowInner
             {...props}
-            instances={props.instances.filter(
-              (item) => !selectedCategorys.includes(item.categoryId)
-            )}
+            nodes={props.nodes} // props.nodes.filter(item) => !selectedCategorys.includes(item.categoryId))
             selectedCategory={selectedCategorys}
           />
         </div>

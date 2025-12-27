@@ -12,6 +12,7 @@ import UserManagementPage from "./pages/user/userList.tsx";
 import DocsPage from "./pages/home/DocsPage.tsx";
 import InstancesListPage from "./pages/equipments/instancesList.tsx";
 import NodesPage from "./components/Nodes.tsx";
+import DocumentsPage from "./pages/equipments/documentsList.tsx";
 const router = createBrowserRouter([
   {
     Component: App,
@@ -38,12 +39,16 @@ const router = createBrowserRouter([
             Component: UserManagementPage,
           },
           {
-            path: "/instance/:id",
+            path: "/node/:id",
             Component: DocsPage,
           },
           {
             path: "/equipments",
             Component: InstancesListPage,
+          },
+          {
+            path: "/documents",
+            Component: DocumentsPage,
           },
         ],
       },

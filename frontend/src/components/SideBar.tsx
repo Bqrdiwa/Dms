@@ -15,6 +15,9 @@ import {
   FileX,
   Tag,
   Users,
+  Files,
+  Info,
+  Workflow,
 } from "lucide-react";
 import { Button, cn, Input, Tooltip } from "@heroui/react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -36,22 +39,22 @@ const sidebarItems: SidebarItem[] = [
     href: "/",
   },
   {
-    id: "Vendor Lists",
-    label: "Vendor Lists",
-    icon: BarChart3,
-    href: "/vendors",
-  },
-  {
-    id: "Tags List",
-    label: "Tags List",
-    icon: Tag,
-    href: "/tags",
-  },
-  {
-    id: "Equipments List",
-    label: "Equipments",
-    icon: FileX,
+    id: "base info",
+    label: "Base Information",
+    icon: Info,
     children: [
+      {
+        id: "Vendor Lists",
+        label: "Vendor Lists",
+        icon: BarChart3,
+        href: "/vendors",
+      },
+      {
+        id: "Tags List",
+        label: "Tags List",
+        icon: Tag,
+        href: "/tags",
+      },
       {
         id: "equipments list",
         label: "All Equipments",
@@ -61,11 +64,25 @@ const sidebarItems: SidebarItem[] = [
     ],
   },
   {
-    id: "OrgChartAndEquipments",
-    label: "OrgChartAndEquipments",
-    icon: FileText,
-    href: "/nodes",
+    id: "Document Organization",
+    label: "Document Organization",
+    icon: FileX,
+    children: [
+      {
+        id: "documents list",
+        label: "All Documents",
+        icon: Files,
+        href: "/documents",
+      },
+      {
+        id: "Classification",
+        label: "Classification",
+        icon: Workflow,
+        href: "/nodes",
+      },
+    ],
   },
+
   {
     id: "Users",
     label: "User Management",
@@ -87,7 +104,11 @@ export function SidebarPanel({ className }: SidebarPanelProps) {
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
-    if (location.pathname == "/" || location.pathname == "/instance")
+    if (
+      location.pathname == "/" ||
+      location.pathname == "/instance" ||
+      location.pathname == "/documents"
+    )
       setIsCollapsed(true);
   }, [location.pathname]);
   const toggleCollapsed = () => {
