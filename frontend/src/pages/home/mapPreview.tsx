@@ -157,7 +157,7 @@ function FlowInner({
       zoomOnScroll
       zoomOnPinch
       zoomOnDoubleClick={false}
-      minZoom={0.5}
+      minZoom={0.05}
       maxZoom={4}
     >
       <Controls />

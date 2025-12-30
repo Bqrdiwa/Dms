@@ -5,9 +5,12 @@ import {
   Button,
   Autocomplete,
   AutocompleteItem,
+  Tooltip,
 } from "@heroui/react";
-import { Search, ChevronLeft, ChevronRight, FileDown } from "lucide-react";
-import { useState, useEffect } from "react";
+import { ChevronLeft, ChevronRight, FileDown } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MapSelect } from "../../components/MapSelect";
+import apiClient from "../../api/ApiClient";
 
 export interface Document {
   documentId: string;
@@ -15,305 +18,227 @@ export interface Document {
   description: string | null;
   fileUrl: string;
   createAt: string;
-  nodeTitle: string;
   vendor?: string;
   revision?: string;
   tag?: string;
-  keyword?: string;
 }
 
-export interface Vendor {
-  id: string;
-  name: string;
-}
-
-interface DocsSideBarProps {
+interface Props {
   documents: Document[] | null;
-  selectedDoc: string | null;
-  onSelectDoc: (url: string) => void;
   loading: boolean;
   page: number;
   totalCount: number;
   pageSize: number;
+  selectedMapId?: string;
+  onSelectMap: (id: string) => void;
   onPageChange: (page: number) => void;
-  onSearch: (
-    vendor: string,
-    nodeTitle: string,
-    docTitle: string,
-    revision: string,
-    tag: string,
-    keyword: string
-  ) => void;
+  onSelectDoc: (url: string) => void;
   onExport: () => void;
-  fetchVendors: (query: string) => Promise<Vendor[]>;
-  fetchTags: (query: string) => Promise<any[]>;
-  fetchKeywords: (query: string) => Promise<any[]>;
+  onSearch: (filters: {
+    documentTitle: string;
+    docNo: string;
+    lineNo: string;
+    volNo: string;
+    tagIds: number[];
+    vendorIds: number[];
+  }) => void;
 }
 
 export default function DocsSideBar({
   documents,
-  selectedDoc,
-  onSelectDoc,
-  loading,
   page,
   totalCount,
   pageSize,
-  fetchKeywords,
-  fetchTags,
+  selectedMapId,
+  onSelectMap,
   onPageChange,
-  onSearch,
+  onSelectDoc,
   onExport,
-  fetchVendors,
-}: DocsSideBarProps) {
-  const [vendorSearch, setVendorSearch] = useState("");
-  const [nodeTitleSearch, setNodeTitleSearch] = useState("");
-  const [docTitleSearch, setDocTitleSearch] = useState("");
-  const [revisionSearch, setRevisionSearch] = useState("");
-  const [tagSearch, setTagSearch] = useState("");
-  const [keywordSearch, setKeywordSearch] = useState("");
-  const [tagOptions, setTagOptions] = useState<{id:string;isActive:boolean;name:string;tagId:number;}[]>([]);
-  const [keywordInput,setKeywordInput] = useState("")
-  const [tagInput, setTagInput] = useState("");
-const [tagLoading, setTagLoading] = useState(false);
+  onSearch,
+}: Props) {
+  const [documentTitle, setDocumentTitle] = useState("");
+  const [docNo, setDocNo] = useState("");
+  const [lineNo, setLineNo] = useState("");
+  const [volNo, setVolNo] = useState("");
 
-const [keywordLoading, setKeywordLoading] = useState(false);
-  const [keywordOptions, setKeywordOptions] = useState<{id:string;isActive:boolean;keywordId:number;title:string;}[]>([]);
-  const [vendorOptions, setVendorOptions] = useState<Vendor[]>([]);
-  const [vendorLoading, setVendorLoading] = useState(false);
+  const [tagOptions, setTagOptions] = useState<any[]>([]);
+  const [vendorOptions, setVendorOptions] = useState<any[]>([]);
+
+  const [tagIds, setTagIds] = useState<number[]>([]);
+  const [vendorIds, setVendorIds] = useState<number[]>([]);
+  const [tagQuery, setTagQuery] = useState("");
+  const [vendorQuery, setVendorQuery] = useState("");
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  // Fetch vendors when input changes (debounced)
-  useEffect(() => {
-    const timeout = setTimeout(async () => {
-      setVendorLoading(true);
-      const items = await fetchVendors(vendorSearch);
-      setVendorOptions(items);
-      setVendorLoading(false);
-    }, 300);
-    return () => clearTimeout(timeout);
-  }, [vendorSearch]);
+
 
   useEffect(() => {
-    onSearch(
-      vendorSearch,
-      nodeTitleSearch,
-      docTitleSearch,
-      revisionSearch,
-      tagSearch,
-      keywordSearch
-    );
-  }, [
-    vendorSearch,
-    nodeTitleSearch,
-    docTitleSearch,
-    revisionSearch,
-    tagSearch,
-    keywordSearch,
-  ]);
-  useEffect(() => {
-    const fetch = async () => {
-      setKeywordLoading(true)
-      const items = await fetchKeywords(keywordInput);
-      setKeywordLoading(false)
-      setKeywordOptions(items);
+    const fetchTags = async () => {
+
+
+      const res = await apiClient.get("/tag/", {
+        params: { search: tagQuery },
+      });
+      setTagOptions(res.data.items);
     };
 
-    fetch();
-  }, [keywordInput]);
-  useEffect(() => {
-    const fetch = async () => {
-      setTagLoading(true)
-      const items = await fetchTags(tagInput);
-      setTagLoading(false);
+    fetchTags();
+  }, [tagQuery]);
 
-      setTagOptions(items);
+  useEffect(() => {
+    const fetchVendors = async () => {
+
+
+      const res = await apiClient.get("/vendor/", {
+        params: { search: vendorQuery },
+      });
+      setVendorOptions(res.data.items);
     };
-    fetch();
-  }, [tagInput]);
+
+    fetchVendors();
+  }, [vendorQuery]);
+  useEffect(() => {
+    onSearch({
+      documentTitle,
+      docNo,
+      lineNo,
+      volNo,
+      tagIds,
+      vendorIds,
+    });
+  }, [documentTitle, docNo, lineNo, volNo, tagIds, vendorIds]);
+
   return (
-    <div className="w-120 h-full bg-background shadow-md flex flex-col">
-      <div className="flex items-center justify-between p-6">
-        <h1 className="font-bold text-lg">All Documents</h1>
-
-        {/* Export button */}
-        <Button
-          color="secondary"
-          startContent={<FileDown size={16} />}
-          variant="flat"
-          onPress={onExport}
-        >
-          Export
-        </Button>
+    <div className="w-120 h-full flex flex-col shadow-md">
+      <div className="p-6 pb-0 flex justify-between items-center">
+        <h1 className="font-bold w-full">Documents</h1>
+        <MapSelect
+          selectedMapId={selectedMapId}
+          className="w-40"
+          onSelectMap={onSelectMap}
+        />
       </div>
 
-      <Divider />
+      <Divider className="mt-6" />
 
-      {/* Search Filters */}
-      <div className="flex flex-col gap-3 p-6">
-        <Input
-          startContent={<Search className="text-default-600" />}
-          placeholder="Search Document Title..."
-          value={docTitleSearch}
-          onChange={(e) => {
-            setDocTitleSearch(e.target.value);
-          }}
-        />
+      <div className="p-6 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2 flex gap-3">
+            <Input
+              classNames={{ base: "flex-1" }}
+              placeholder="Document Title"
+              value={documentTitle}
+              onChange={(e) => setDocumentTitle(e.target.value)}
+            />
+            <Tooltip content="Export">
+              <Button
+                variant="flat"
+                color="primary"
+                isIconOnly
+                onPress={onExport}
+              >
+                <FileDown />
+              </Button>
+            </Tooltip>
+          </div>
 
-        <Input
-          placeholder="Revision..."
-          value={revisionSearch}
-          onChange={(e) => {
-            setRevisionSearch(e.target.value);
-          }}
-        />
-
-        <Autocomplete
-          placeholder="Select Tag..."
-          items={tagOptions}
-          isLoading={tagLoading}
-          value={tagSearch}
-          onInputChange={setTagInput}
-          onSelectionChange={(val) => setTagSearch(val !== null ? val as string : "")}
-        >
-          {(item) => (
-            <AutocompleteItem key={item.id}>{item.name}</AutocompleteItem>
-          )}
-        </Autocomplete>
-
-        <Autocomplete
-          placeholder="Select Keyword..."
-          items={keywordOptions}
-          isLoading={keywordLoading}
-          value={keywordSearch}
-          onInputChange={setKeywordInput}
-          onSelectionChange={(val) => setKeywordSearch(val !== null ? val as string : "")}
-        >
-          {(item) => (
-            <AutocompleteItem key={item.id}>{item.title}</AutocompleteItem>
-          )}
-        </Autocomplete>
-
-        <div className="flex gap-2">
+          <Input
+            placeholder="Doc No"
+            value={docNo}
+            onChange={(e) => setDocNo(e.target.value)}
+          />
+          <Input
+            placeholder="Line No"
+            value={lineNo}
+            onChange={(e) => setLineNo(e.target.value)}
+          />
+          <Input
+            placeholder="Vol No"
+            value={volNo}
+            onChange={(e) => setVolNo(e.target.value)}
+          />
           <Autocomplete
-            placeholder="Search Vendor..."
-            items={vendorOptions.map((v) => ({ value: v.name }))}
-            value={vendorSearch}
-            onSelectionChange={(val) => {
-              setVendorSearch(val !== null ? (val as string) : "");
+            items={tagOptions}
+            placeholder="Tag"
+            inputValue={tagQuery}
+            onInputChange={setTagQuery}
+            allowsEmptyCollection
+            value={tagIds[0]?.toString()}
+            onSelectionChange={(key) => {
+              if (key === null) {
+                setTagIds([]);
+              } else {
+                setTagIds([Number(key)]);
+              }
             }}
-            isLoading={vendorLoading}
-            className="w-full"
           >
             {(item) => (
-              <AutocompleteItem key={item.value}>{item.value}</AutocompleteItem>
+              <AutocompleteItem key={String(item.tagId)}>
+                {item.name}
+              </AutocompleteItem>
             )}
           </Autocomplete>
 
-          {/* Node Title */}
-          <Input
-            placeholder="Node Title..."
-            value={nodeTitleSearch}
-            onChange={(e) => {
-              setNodeTitleSearch(e.target.value);
+          <Autocomplete
+            items={vendorOptions}
+            placeholder="Vendor"
+            inputValue={vendorQuery}
+            onInputChange={setVendorQuery}
+            allowsEmptyCollection
+            value={vendorIds[0]?.toString()}
+            onSelectionChange={(key) => {
+              if (key === null) {
+                setVendorIds([]);
+              } else {
+                setVendorIds([Number(key)]);
+              }
             }}
-          />
+          >
+            {(item) => (
+              <AutocompleteItem key={String(item.vendorId)}>
+                {item.name}
+              </AutocompleteItem>
+            )}
+          </Autocomplete>
         </div>
       </div>
 
-      <div className="flex px-6 justify-between gap-10">
-        <h3 className="text-default-600">Results</h3>
-        <h3 className="text-default-600">
-          {loading || !documents ? "Loading..." : `${totalCount} items`}
-        </h3>
-      </div>
+      <Divider />
 
-      <Divider className="my-2" />
-
-      {/* Document list */}
-      <div className="flex flex-col grow p-6 flex-1 overflow-y-auto h-full gap-2">
-        {documents != null ? (
-          documents.length > 0 ? (
-            documents.map((doc) => (
-              <div
-                key={doc.documentId}
-                onClick={() => onSelectDoc(doc.fileUrl)}
-                className={`p-3 rounded-md cursor-pointer hover:bg-default-200 transition ${
-                  selectedDoc === doc.fileUrl ? "bg-default-200" : ""
-                }`}
-              >
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between gap-4">
-                    <p className="font-medium">{doc.title}</p>
-                    <p className="text-sm text-default-500">
-                      {new Date(doc.createAt).toLocaleDateString()}
-                    </p>
-                  </div>
-
-                  <p className="text-sm text-default-600">{doc.nodeTitle}</p>
-
-                  {doc.description && (
-                    <p className="text-sm text-default-500 line-clamp-2">
-                      {doc.description}
-                    </p>
-                  )}
-
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {doc.vendor && (
-                      <p className="text-xs text-default-400">
-                        Vendor: {doc.vendor}
-                      </p>
-                    )}
-                    {doc.revision && (
-                      <p className="text-xs text-default-400">
-                        Revision: {doc.revision}
-                      </p>
-                    )}
-                    {doc.tag && (
-                      <p className="text-xs text-default-400">Tag: {doc.tag}</p>
-                    )}
-                    {doc.keyword && (
-                      <p className="text-xs text-default-400">
-                        Keyword: {doc.keyword}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-default-500 w-full py-10 text-center">
-              No documents found.
-            </p>
-          )
-        ) : (
-          Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="w-full !h-[100px] rounded-md mb-2" />
+      <div className="flex-1 overflow-y-auto p-6 space-y-2">
+        {documents ? (
+          documents.map((doc) => (
+            <div
+              key={doc.documentId}
+              className="p-3 rounded hover:bg-default-200 cursor-pointer"
+              onClick={() => onSelectDoc(doc.fileUrl)}
+            >
+              <p className="font-medium">{doc.title}</p>
+              <p className="text-xs">{doc.vendor}</p>
+            </div>
           ))
+        ) : (
+          <Skeleton className="h-20" />
         )}
       </div>
 
-      {/* Pagination */}
       <Divider />
-      <div className="flex items-center justify-between px-6 py-4 bg-default-100">
+      <div className="p-4 flex justify-between">
         <Button
           isIconOnly
-          isDisabled={page <= 1 || loading}
+          disabled={page <= 1}
           onPress={() => onPageChange(page - 1)}
-          variant="light"
         >
           <ChevronLeft />
         </Button>
-
-        <span className="text-sm text-default-600">
-          Page {page} of {totalPages}
+        <span>
+          {page} / {totalPages}
         </span>
-
         <Button
           isIconOnly
-          isDisabled={page >= totalPages || loading}
+          disabled={page >= totalPages}
           onPress={() => onPageChange(page + 1)}
-          variant="light"
         >
           <ChevronRight />
         </Button>

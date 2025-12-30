@@ -15,7 +15,6 @@ export interface MapItem {
 }
 
 export default function HomePage() {
-  const [maps, setMaps] = useState<MapItem[]>([]);
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
 
   const [equipments, setEquipments] = useState<NodeItem[]>([]);
@@ -24,29 +23,6 @@ export default function HomePage() {
   const [focusInstance, setFocusInstance] = useState<NodeItem | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
 
-  // -------------------------
-  // Fetch ALL maps
-  // -------------------------
-  useEffect(() => {
-    const fetchMaps = async () => {
-      setLoading(true);
-      try {
-        const res = await apiClient.get(BACKEND_BASE_URL+"/api/map/all");
-        setMaps(res.data || []);
-
-        // Auto-select first map if nothing selected
-        if (!selectedMapId && res.data?.length > 0) {
-          setSelectedMapId(res.data[0].mapId);
-        }
-      } catch (err) {
-        console.error("Error fetching maps:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMaps();
-  }, []);
 
   // -------------------------
   // Fetch CATEGORIES
@@ -93,7 +69,6 @@ export default function HomePage() {
       {/* Sidebar */}
       <SideBar
         nodes={equipments}
-        maps={maps}
         loading={loading}
         selectedMapId={selectedMapId}
         onSelectMap={(id) => setSelectedMapId(id)}

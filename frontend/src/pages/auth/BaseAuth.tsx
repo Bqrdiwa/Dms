@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import LoginInputs from "./Login";
 import apiClient from "../../api/ApiClient";
 
-const FORMHEADER = "bandar imam petrochemical company";
+const FORMHEADER = "edms";
 
 export default function BaseAuth() {
   const location = useLocation();
@@ -40,10 +40,10 @@ export default function BaseAuth() {
       onSubmit={handleSubmit}
       className="bg-default-50 px-20 py-12 items-center border-y-2 border-divider w-full"
     >
-      <h1 className="uppercase mb-20 text-2xl font-bold text-center w-full">
+      <h1 className="uppercase mb-10 text-2xl font-bold  w-full">
         {FORMHEADER}
       </h1>
-      <div className="flex w-[600px] max-w-full gap-2 flex-col">
+      <div className="flex w-[600px] max-w-full w-full gap-2 flex-col">
         <div className="mb-5">
           <h2 className="text-lg font-medium">Login to DMS Portal</h2>
           <h3 className="text-default-900">

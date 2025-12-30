@@ -13,6 +13,7 @@ import DocsPage from "./pages/home/DocsPage.tsx";
 import InstancesListPage from "./pages/equipments/instancesList.tsx";
 import NodesPage from "./components/Nodes.tsx";
 import DocumentsPage from "./pages/equipments/documentsList.tsx";
+import ThesaurusListPage from "./pages/thesaurus/ThesaurusListPage.tsx";
 const router = createBrowserRouter([
   {
     Component: App,
@@ -25,6 +26,10 @@ const router = createBrowserRouter([
           {
             path: "/tags",
             Component: TagListPage,
+          },
+          {
+            path: "thesauruses",
+            Component: ThesaurusListPage,
           },
           {
             path: "/vendors",

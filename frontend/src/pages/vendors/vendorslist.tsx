@@ -12,17 +12,20 @@ import {
   ModalBody,
   ModalFooter,
   Input,
+  Textarea,
   useDisclosure,
   Form,
   Pagination,
   Spinner,
-  Textarea,
-  Tooltip,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
 } from "@heroui/react";
 import { useEffect, useState, type FormEvent } from "react";
 import ScrollingLayout from "../../layouts/ScrollingLayout";
 import apiClient from "../../api/ApiClient";
-import { Edit, Trash } from "lucide-react";
+import {  MoreVertical } from "lucide-react";
 
 export default function VendorListPage() {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -46,13 +49,10 @@ export default function VendorListPage() {
     setGetting(true);
     try {
       const response = await apiClient.get("/vendor/", {
-        params: { page: pageNumber, pageSize: pageSize },
+        params: { page: pageNumber, pageSize },
       });
-
       const data = response.data;
-
       setVendors(data.items ?? []);
-
       const totalCount = data.totalCount ?? data.items?.length ?? 0;
       setTotalPages(Math.ceil(totalCount / pageSize));
     } catch (error) {
@@ -66,7 +66,7 @@ export default function VendorListPage() {
     fetchVendors(page);
   }, [page]);
 
-  // Create
+  // Create / Update
   const handleCreateVendor = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -83,7 +83,6 @@ export default function VendorListPage() {
     }
   };
 
-  // Update
   const handleUpdateVendor = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingVendor) return;
@@ -142,17 +141,19 @@ export default function VendorListPage() {
             tbody: "px-6",
             thead: "rounded-none",
             th: " bg-secondary-800 py-4 text-sm !rounded-none text-background",
-            base: "rounded-md ",
+            base: "rounded-md",
           }}
           bottomContent={
             <div className="flex w-full p-3">
-              <Pagination
-                variant="light"
-                color="primary"
-                page={page}
-                total={totalPages}
-                onChange={setPage}
-              />
+              {vendors.length > 0 && (
+                <Pagination
+                  variant="light"
+                  color="primary"
+                  page={page}
+                  total={totalPages}
+                  onChange={setPage}
+                />
+              )}
             </div>
           }
         >
@@ -170,53 +171,40 @@ export default function VendorListPage() {
           >
             {(item) => (
               <TableRow key={item.vendorId}>
-                <TableCell>{item.id}</TableCell>
+                <TableCell>{item.vendorId}</TableCell>
                 <TableCell>{item.name}</TableCell>
                 <TableCell>
                   <p className="text-default-600">{item.description}</p>
                 </TableCell>
                 <TableCell>
-                  <div className="flex gap-2">
-                    <Tooltip
-                      content={"Edit"}
-                      placement="left"
-                      showArrow
-                      color={"default"}
-                    >
-                      <Button
-                        size="sm"
-                        className="opacity-70 hover:opacity-100"
-                        variant="light"
-                        isIconOnly
+                  <Dropdown placement="bottom-end">
+                    <DropdownTrigger>
+                      <Button size="sm" variant="light" isIconOnly>
+                        <MoreVertical />
+                      </Button>
+                    </DropdownTrigger>
+                    <DropdownMenu>
+                      <DropdownItem
+                      key={1}
                         onPress={() => {
                           setEditingVendor(item);
                           onOpen();
                         }}
                       >
-                        <Edit />
-                      </Button>
-                    </Tooltip>
-                    <Tooltip
-                      content={"Delete"}
-                      placement="left"
-                      showArrow
-                      color={"danger"}
-                    >
-                      <Button
-                        size="sm"
-                        variant="light"
-                        className="opacity-70 hover:opacity-100"
-                        isIconOnly
+                        Edit
+                      </DropdownItem>
+                      <DropdownItem
+                      key={2}
                         color="danger"
                         onPress={() => {
                           setDeletingVendor(item);
                           onDeleteOpen();
                         }}
                       >
-                        <Trash />
-                      </Button>
-                    </Tooltip>
-                  </div>
+                        Delete
+                      </DropdownItem>
+                    </DropdownMenu>
+                  </Dropdown>
                 </TableCell>
               </TableRow>
             )}
@@ -227,9 +215,7 @@ export default function VendorListPage() {
       {/* Modal for create / edit */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalContent>
-          <ModalHeader>
-            {editingVendor ? "Edit Vendor" : "Create New Vendor"}
-          </ModalHeader>
+          <ModalHeader>{editingVendor ? "Edit Vendor" : "Create New Vendor"}</ModalHeader>
           <Form
             className="w-full flex flex-col"
             onSubmit={editingVendor ? handleUpdateVendor : handleCreateVendor}
@@ -238,10 +224,10 @@ export default function VendorListPage() {
               <Input
                 label="Vendor ID"
                 isRequired
-                name={"id"}
+                name="id"
                 labelPlacement="outside"
                 placeholder="Enter vendor id"
-                defaultValue={editingVendor?.id}
+                defaultValue={editingVendor?.vendorId}
               />
               <Input
                 label="Vendor Name"

@@ -13,20 +13,22 @@ import {
   ModalBody,
   ModalFooter,
   Input,
-  Select,
-  SelectItem,
   useDisclosure,
   Form,
   Pagination,
   Spinner,
-  Tooltip,
+  Dropdown,
+  DropdownItem,
+  DropdownTrigger,
+  DropdownMenu,
 } from "@heroui/react";
 import { useEffect, useState, type FormEvent } from "react";
 import ScrollingLayout from "../../layouts/ScrollingLayout";
 import apiClient from "../../api/ApiClient";
-import { Edit, Trash, Key } from "lucide-react";
+import {  MoreVertical } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
+import CreateOrEditUserModal from "./CreateOrEditUserModal";
 
 interface User {
   userId: number;
@@ -34,6 +36,7 @@ interface User {
   lastname: string;
   email: string;
   username: string;
+  mapIds: string[];
   role: "USER" | "ADMIN";
 }
 
@@ -241,67 +244,48 @@ export default function UserManagementPage() {
                   </Chip>
                 </TableCell>
                 <TableCell>
-                  <div className="flex gap-2">
-                    <Tooltip
-                      content={"Edit"}
-                      placement="left"
-                      showArrow
-                      color={"default"}
-                    >
+                  <Dropdown placement="bottom-end">
+                    <DropdownTrigger>
                       <Button
                         size="sm"
-                        className="opacity-70 hover:opacity-100"
                         variant="light"
                         isIconOnly
+                        color="primary"
+                      >
+                        <MoreVertical />
+                      </Button>
+                    </DropdownTrigger>
+                    <DropdownMenu>
+                      <DropdownItem
+                        key={1}
                         onPress={() => {
                           setEditingUser(user);
                           onOpen();
                         }}
                       >
-                        <Edit />
-                      </Button>
-                    </Tooltip>
-                    <Tooltip
-                      content={"Reset Password"}
-                      placement="left"
-                      showArrow
-                      color={"warning"}
-                    >
-                      <Button
-                        size="sm"
-                        variant="light"
-                        isIconOnly
-                        color="warning"
-                        className="opacity-70 hover:opacity-100"
+                        Edit
+                      </DropdownItem>
+                      <DropdownItem
+                        key={2}
                         onPress={() => {
                           setChangingPasswordUser(user);
                           onPasswordOpen();
                         }}
                       >
-                        <Key />
-                      </Button>
-                    </Tooltip>
-                    <Tooltip
-                      content={"Delete"}
-                      placement="left"
-                      showArrow
-                      color={"danger"}
-                    >
-                      <Button
-                        size="sm"
-                        variant="light"
-                        isIconOnly
-                        className="opacity-70 hover:opacity-100"
+                        Reset Password
+                      </DropdownItem>
+                      <DropdownItem
+                        key={3}
                         color="danger"
                         onPress={() => {
                           setDeletingUser(user);
                           onDeleteOpen();
                         }}
                       >
-                        <Trash />
-                      </Button>
-                    </Tooltip>
-                  </div>
+                        Delete
+                      </DropdownItem>
+                    </DropdownMenu>
+                  </Dropdown>
                 </TableCell>
               </TableRow>
             )}
@@ -309,71 +293,16 @@ export default function UserManagementPage() {
         </Table>
       </div>
 
-      {/* Create / Edit Modal */}
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalContent>
-          <ModalHeader>{editingUser ? "Edit User" : "Create User"}</ModalHeader>
-          <ModalBody>
-            <Form
-              onSubmit={handleCreateOrUpdateUser}
-              className="w-full flex flex-col gap-4"
-            >
-              <Input
-                label="First Name"
-                name="firstname"
-                isRequired
-                defaultValue={editingUser?.firstname}
-              />
-              <Input
-                label="Last Name"
-                name="lastname"
-                isRequired
-                defaultValue={editingUser?.lastname}
-              />
-              <Input
-                label="Email"
-                name="email"
-                type="email"
-                isRequired
-                defaultValue={editingUser?.email}
-              />
-              <Input
-                label="Username"
-                name="username"
-                isRequired
-                defaultValue={editingUser?.username}
-              />
-              {!editingUser && (
-                <Input
-                  label="Password"
-                  name="password"
-                  type="password"
-                  placeholder={editingUser ? "Leave blank to keep current" : ""}
-                  isRequired={!editingUser}
-                />
-              )}
-
-              <Select
-                label="Role"
-                name="role"
-                defaultSelectedKeys={[editingUser?.role ?? "USER"]}
-              >
-                {["USER", "ADMIN"].map((r) => (
-                  <SelectItem key={r}>{r}</SelectItem>
-                ))}
-              </Select>
-              <Button
-                type="submit"
-                className="mb-3"
-                color="primary"
-                isLoading={loading}
-              >
-                {editingUser ? "Update" : "Create"}
-              </Button>
-            </Form>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+      <CreateOrEditUserModal
+        isOpen={isOpen}
+        onClose={() => {
+          setEditingUser(null);
+          onClose();
+        }}
+        onSubmit={handleCreateOrUpdateUser}
+        loading={loading}
+        editingUser={editingUser}
+      />
 
       {/* Change Password Modal */}
       <Modal isOpen={isPasswordOpen} onClose={onPasswordClose}>

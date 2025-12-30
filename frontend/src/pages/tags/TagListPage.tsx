@@ -17,20 +17,20 @@ import {
   Form,
   Pagination,
   Spinner,
-  Tooltip,
+  Dropdown,
+  DropdownItem,
+  DropdownTrigger,
+  DropdownMenu,
 } from "@heroui/react";
 import { useEffect, useState, type FormEvent } from "react";
 import ScrollingLayout from "../../layouts/ScrollingLayout";
 import apiClient from "../../api/ApiClient";
-import { Edit, Trash } from "lucide-react";
+import {  MoreVertical } from "lucide-react";
 
 export default function TagListPage() {
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const {
-    isOpen: isDeleteOpen,
-    onOpen: onDeleteOpen,
-    onClose: onDeleteClose,
-  } = useDisclosure();
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } =
+    useDisclosure();
 
   const [tags, setTags] = useState<any[]>([]);
   const [getting, setGetting] = useState(true);
@@ -49,11 +49,8 @@ export default function TagListPage() {
       const response = await apiClient.get("/tag/", {
         params: { page: pageNumber, pageSize },
       });
-
       const data = response.data;
-
       setTags(data.items ?? []);
-
       const totalCount = data.totalCount ?? data.items?.length ?? 0;
       setTotalPages(Math.ceil(totalCount / pageSize));
     } catch (error) {
@@ -67,7 +64,7 @@ export default function TagListPage() {
     fetchTags(page);
   }, [page]);
 
-  // Create
+  // Create / Update
   const handleCreateTag = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -84,7 +81,6 @@ export default function TagListPage() {
     }
   };
 
-  // Update
   const handleUpdateTag = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingTag) return;
@@ -123,12 +119,8 @@ export default function TagListPage() {
   const handleToggleStatus = async (id: number, status: boolean) => {
     setLoadingTags((prev) => [...prev, id]);
     try {
-      await apiClient.patch(`/tag/${id}/status`, {
-        isActive: status,
-      });
-      setTags(
-        tags.map((i) => (i.tagId == id ? { ...i, isActive: status } : i))
-      );
+      await apiClient.patch(`/tag/${id}/status`, { isActive: status });
+      setTags(tags.map((i) => (i.tagId == id ? { ...i, isActive: status } : i)));
     } catch (error) {
       console.error("❌ Failed to toggle tag status:", error);
     } finally {
@@ -164,94 +156,77 @@ export default function TagListPage() {
           }}
           bottomContent={
             <div className="flex w-full p-3">
-              <Pagination
-                variant="light"
-                color="primary"
-                page={page}
-                total={totalPages}
-                onChange={setPage}
-              />
+              {tags.length > 0 && (
+                <Pagination
+                  variant="light"
+                  color="primary"
+                  page={page}
+                  total={totalPages}
+                  onChange={setPage}
+                />
+              )}
             </div>
           }
         >
           <TableHeader>
-            <TableColumn>ID</TableColumn>
-            <TableColumn>Tag</TableColumn>
+            <TableColumn>TagId</TableColumn>
+            <TableColumn>Name</TableColumn>
             <TableColumn>Status</TableColumn>
             <TableColumn>Actions</TableColumn>
           </TableHeader>
+
           <TableBody
             isLoading={getting}
             loadingContent={<Spinner variant="gradient" />}
             emptyContent={"No tags found"}
-            items={tags.map((i) => ({
-              ...i,
-              loading: loadingTags.includes(i.tagId),
-            }))}
+            items={tags.map((i) => ({ ...i, loading: loadingTags.includes(i.tagId) }))}
           >
             {(item) => (
-              <TableRow key={item.id}>
-                <TableCell>{item.id}</TableCell>
+              <TableRow key={item.tagId}>
+                <TableCell>{item.tagId}</TableCell>
                 <TableCell>{item.name}</TableCell>
                 <TableCell>
                   <Chip
                     as={Button}
                     isDisabled={item.loading}
                     onPress={() =>
-                      handleToggleStatus(
-                        item.tagId,
-                        item.isActive ? false : true
-                      )
+                      handleToggleStatus(item.tagId, !item.isActive)
                     }
                     color={item.isActive ? "success" : "danger"}
                     variant="flat"
-                    className="relative"
                   >
                     {item.isActive ? "Active" : "Inactive"}
                   </Chip>
                 </TableCell>
                 <TableCell>
-                  <div className="flex gap-2">
-                    <Tooltip
-                      content={"Edit"}
-                      placement="left"
-                      showArrow
-                      color={"default"}
-                    >
-                      <Button
-                        size="sm"
-                        className="opacity-70 hover:opacity-100"
-                        variant="light"
-                        isIconOnly
+                  <Dropdown placement="bottom-end">
+                    <DropdownTrigger>
+                      <Button size="sm" variant="light" isIconOnly>
+                        <MoreVertical />
+                      </Button>
+                    </DropdownTrigger>
+                    <DropdownMenu>
+                      <DropdownItem
+                        key={1}
                         onPress={() => {
                           setEditingTag(item);
                           onOpen();
                         }}
                       >
-                        <Edit />
-                      </Button>
-                    </Tooltip>
-                    <Tooltip
-                      content={"Delete"}
-                      placement="left"
-                      showArrow
-                      color={"danger"}
-                    >
-                      <Button
-                        size="sm"
-                        variant="light"
-                        className="opacity-70 hover:opacity-100"
-                        isIconOnly
+                        Edit
+                      </DropdownItem>
+                      <DropdownItem
+                        key={2}
                         color="danger"
                         onPress={() => {
                           setDeletingTag(item);
                           onDeleteOpen();
                         }}
                       >
-                        <Trash />
-                      </Button>
-                    </Tooltip>
-                  </div>
+                        Delete
+                      </DropdownItem>
+                    </DropdownMenu>
+                  </Dropdown>
                 </TableCell>
               </TableRow>
             )}
@@ -262,9 +237,7 @@ export default function TagListPage() {
       {/* Modal for create / edit */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalContent>
-          <ModalHeader>
-            {editingTag ? "Edit Tag" : "Create New Tag"}
-          </ModalHeader>
+          <ModalHeader>{editingTag ? "Edit Tag" : "Create New Tag"}</ModalHeader>
           <Form
             onSubmit={editingTag ? handleUpdateTag : handleCreateTag}
             className="w-full flex flex-col"
@@ -272,11 +245,11 @@ export default function TagListPage() {
             <ModalBody>
               <Input
                 label="Tag ID"
-                isRequired
+                isReadOnly={!!editingTag}
                 name="id"
                 labelPlacement="outside"
                 placeholder="Enter tag id"
-                defaultValue={editingTag?.id}
+                defaultValue={editingTag?.tagId}
               />
               <Input
                 label="Tag Name"
@@ -304,20 +277,14 @@ export default function TagListPage() {
         <ModalContent>
           <ModalHeader>Delete Tag</ModalHeader>
           <ModalBody>
-            <p>
-              Are you sure you want to delete the tag{" "}
-              <span className="font-semibold">{deletingTag?.name}</span>?
-            </p>
+            Are you sure you want to delete the tag{" "}
+            <span className="font-semibold">{deletingTag?.name}</span>?
           </ModalBody>
           <ModalFooter>
             <Button variant="flat" onPress={onDeleteClose}>
               Cancel
             </Button>
-            <Button
-              color="danger"
-              isLoading={loading}
-              onPress={handleDeleteTag}
-            >
+            <Button color="danger" isLoading={loading} onPress={handleDeleteTag}>
               Delete
             </Button>
           </ModalFooter>

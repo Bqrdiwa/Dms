@@ -1,8 +1,9 @@
-import { Divider, Input, Select, SelectItem, Skeleton } from "@heroui/react";
+import { Divider, Input, Skeleton } from "@heroui/react";
 import { Search } from "lucide-react";
 import { useState, useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { COLOR_CLASSES } from "./Marker";
+import { MapSelect } from "../../components/MapSelect";
 
 export interface NodeItem {
   nodeId: string;
@@ -18,7 +19,6 @@ interface SideBarProps {
   loading: boolean;
   focusNode: NodeItem | null;
 
-  maps: { mapId: string; name: string }[];
   selectedMapId: string | null;
   onSelectMap: (id: string) => void;
 }
@@ -36,8 +36,6 @@ export default function SideBar({
   loading,
   onSelect,
   focusNode,
-
-  maps,
   selectedMapId,
   onSelectMap,
 }: SideBarProps) {
@@ -65,19 +63,12 @@ export default function SideBar({
   return (
     <div className="w-120 h-full bg-background shadow-md">
       <div className="p-6 pb-0 flex justify-between items-center">
-        <h1 className="font-bold text-lg">Nodes</h1>
-
-        <Select
-          placeholder="Map"
+        <h1 className="font-bold w-full">Nodes</h1>
+        <MapSelect
+          selectedMapId={selectedMapId}
+          onSelectMap={onSelectMap}
           className="w-40"
-          disallowEmptySelection
-          selectedKeys={selectedMapId ? [selectedMapId] : []}
-          onChange={(e) => onSelectMap(e.target.value)}
-        >
-          {maps.map((m) => (
-            <SelectItem key={m.mapId}>{m.name}</SelectItem>
-          ))}
-        </Select>
+        />
       </div>
 
       <Divider className="mt-6" />

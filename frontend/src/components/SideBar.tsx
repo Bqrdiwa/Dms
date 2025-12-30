@@ -33,11 +33,12 @@ interface SidebarItem {
 
 const sidebarItems: SidebarItem[] = [
   {
-    id: "Home",
-    label: "Home",
-    icon: Home,
-    href: "/",
+    id: "documents list",
+    label: "All Documents",
+    icon: Files,
+    href: "/documents",
   },
+
   {
     id: "base info",
     label: "Base Information",
@@ -57,9 +58,9 @@ const sidebarItems: SidebarItem[] = [
       },
       {
         id: "equipments list",
-        label: "All Equipments",
+        label: "Thesaurues",
         icon: FileText,
-        href: "/equipments",
+        href: "/thesauruses",
       },
     ],
   },
@@ -69,10 +70,10 @@ const sidebarItems: SidebarItem[] = [
     icon: FileX,
     children: [
       {
-        id: "documents list",
-        label: "All Documents",
-        icon: Files,
-        href: "/documents",
+        id: "Home",
+        label: "Home",
+        icon: Home,
+        href: "/",
       },
       {
         id: "Classification",

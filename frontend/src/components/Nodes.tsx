@@ -17,8 +17,7 @@ import {
 import {
   Button,
   addToast,
-  Select,
-  SelectItem,
+
   Chip,
   Link,
 } from "@heroui/react";
@@ -30,8 +29,8 @@ import dagre from "dagre";
 import { Link as RouterLink } from "react-router-dom";
 import EditNodeModal from "./EditNodeModal";
 import DeleteNodeModal from "./DeleteNodeModal";
-import { BACKEND_BASE_URL } from "../api/Setting";
-import type { MapItem } from "../pages/home/HomePage";
+
+import { MapSelect } from "./MapSelect";
 // Inside your NodeTree component, replace layoutNodes with:
 
 // ---------- Node Types ----------
@@ -153,9 +152,7 @@ function NodeTree() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [editNodeModalOpen, setEditNodeModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [mapLoading,setMapLoading] = useState(true)
-  const [maps, setMaps] = useState<MapItem[]>([]);
-
+  const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
   const onEditNode = (nodeId: string) => {
     setSelectedNodeId(nodeId);
     setEditNodeModalOpen(true);
@@ -171,9 +168,22 @@ function NodeTree() {
     setSelectedNodeId(nodeId);
     setDeleteModalOpen(true);
   };
-  const refreshTree = async () => {
+  const refreshTree = async (mapId?: string | null) => {
+    if (!mapId) {
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
+
     try {
-      const res = await apiClient.get<{ result: TreeNode[] }>("/nodes/tree");
+      const res = await apiClient.get<{ result: TreeNode[] }>(
+        `/nodes/tree`,
+        {
+          params: { mapId },
+        }
+      );
+
+      // 👇 everything below stays EXACTLY the same
       const layoutTreeWithDagre = (treeNodes: TreeNode[]) => {
         const g = new dagre.graphlib.Graph();
         g.setGraph({ rankdir: "TB", ranksep: 100, nodesep: 50 });
@@ -196,17 +206,13 @@ function NodeTree() {
               isEquipment: node.isEquipment,
               nodeId: node.nodeId,
               documentCounts: node.documentCounts ?? 0,
-              depth, // <-- important for zebra coloring
-              onEditNode: (id: string) => {
-                onEditNode(id);
-              },
+              depth,
+              onEditNode,
               onAddChild: (id: string) => {
                 setParentId(id);
                 setModalOpen(true);
               },
-              onDeleteNode: (id: string) => {
-                onDeleteNode(id);
-              },
+              onDeleteNode,
               onAddDocument: (id: string) => {
                 setSelectedNodeId(id);
                 setDocModalOpen(true);
@@ -233,73 +239,50 @@ function NodeTree() {
         };
 
         treeNodes.forEach((root) => traverse(root));
-
         dagre.layout(g);
 
-        const layoutedNodes = Object.values(nodesMap).map((n) => {
-          const nodePos = g.node(n.id);
-          return {
-            ...n,
-            position: {
-              x: nodePos.x - 130,
-              y: nodePos.y - 70,
-            },
-          };
-        });
-
-        return { nodes: layoutedNodes, edges: edgesArr };
+        return {
+          nodes: Object.values(nodesMap).map((n) => {
+            const pos = g.node(n.id);
+            return {
+              ...n,
+              position: { x: pos.x - 130, y: pos.y - 70 },
+            };
+          }),
+          edges: edgesArr,
+        };
       };
 
-      const { nodes: newNodes, edges: newEdges } = layoutTreeWithDagre(
-        res.data.result
-      );
-      setNodes(newNodes);
-      setEdges(newEdges);
+      const { nodes, edges } = layoutTreeWithDagre(res.data.result);
+      setNodes(nodes);
+      setEdges(edges);
 
-      setTimeout(() => {
-        rfRef.current?.fitView({ padding: 0.3 });
-      }, 300);
+      setTimeout(() => rfRef.current?.fitView({ padding: 0.3 }), 300);
     } catch (err) {
-      console.error("Failed to load node tree", err);
+      console.error(err);
       addToast({ title: "Failed to load node tree", color: "danger" });
     }
   };
+  const refreshCurrentTree = async () => {
+    refreshTree(selectedMapId);
+  };
 
   useEffect(() => {
-    refreshTree();
-  }, []);
-  useEffect(() => {
-    const fetchMaps = async () => {
-      setMapLoading(true);
-      try {
-        const res = await apiClient.get(BACKEND_BASE_URL+"/api/map/all");
-        setMaps(res.data || []);
-
-      } catch (err) {
-        console.error("Error fetching maps:", err);
-      } finally {
-        setMapLoading(false);
-      }
-    };
-
-    fetchMaps();
-  }, []);
+    refreshTree(selectedMapId);
+  }, [selectedMapId]);
 
   return (
     <div style={{ flex: 1, height: "100vh", position: "relative" }}>
       {/* 🔹 Top Controls */}
       <div className="absolute w-full top-0 left-0 bg-transparent p-4 justify-between flex z-50">
-        <Select
-          placeholder="Map"
+        <MapSelect
           className="w-40"
-          disallowEmptySelection
-          isLoading={mapLoading}
-          selectedKeys={["0"]}
-        >
-          {maps.map((m,idx) => (
-            <SelectItem key={idx}>{m.name}</SelectItem>
-          ))}
-        </Select>
+          selectedMapId={selectedMapId}
+          onSelectMap={(id) => {
+            setSelectedMapId(id || null);
+          }}
+        />
+
         <Button
           color="primary"
           onPress={() => {
@@ -329,7 +312,7 @@ function NodeTree() {
       <AddInstanceModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onDone={refreshTree}
+        onDone={refreshCurrentTree}
         parentId={parentId}
       />
 
@@ -337,7 +320,7 @@ function NodeTree() {
       <AddDocumentModal
         isOpen={docModalOpen}
         onClose={() => setDocModalOpen(false)}
-        onDone={refreshTree}
+        onDone={refreshCurrentTree}
         nodeId={selectedNodeId}
       />
 
@@ -345,7 +328,7 @@ function NodeTree() {
         <EditNodeModal
           isOpen={editNodeModalOpen}
           onClose={() => setEditNodeModalOpen(false)}
-          onDone={refreshTree}
+          onDone={refreshCurrentTree}
           nodeId={selectedNodeId}
         />
       )}
@@ -354,7 +337,7 @@ function NodeTree() {
           isOpen={deleteModalOpen}
           onClose={() => setDeleteModalOpen(false)}
           nodeId={selectedNodeId}
-          onDone={refreshTree}
+          onDone={refreshCurrentTree}
         />
       )}
     </div>

@@ -86,7 +86,7 @@ export default function AddInstanceModal({
     <Modal size="3xl" isOpen={isOpen} onOpenChange={onClose}>
       <ModalContent>
         <ModalHeader>Add New Node</ModalHeader>
-        <ModalBody>
+        <ModalBody className="max-h-[50vh] overflow-y-auto">
           <Form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <Input
               isRequired
